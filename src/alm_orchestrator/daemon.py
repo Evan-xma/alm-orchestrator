@@ -35,7 +35,7 @@ class Daemon:
 
         # Auto-discover and register all actions
         self._router = discover_actions(prompts_dir)
-        logger.info(f"Discovered {len(self._router._actions)} action(s)")
+        logger.info(f"Discovered {self._router.action_count} action(s)")
 
         # Setup signal handlers
         signal.signal(signal.SIGINT, self._handle_signal)
@@ -57,6 +57,7 @@ class Daemon:
             Number of issues processed.
         """
         issues = self._jira.fetch_issues_with_ai_labels()
+        logger.info(f"Found {len(issues)} issue(s) with AI labels")
         processed = 0
 
         for issue in issues:

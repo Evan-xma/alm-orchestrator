@@ -56,6 +56,27 @@ class TestLabelRouter:
         assert router.has_action("ai-investigate") is True
         assert router.has_action("unknown") is False
 
+    def test_action_count(self):
+        router = LabelRouter()
+        assert router.action_count == 0
+
+        router.register("ai-investigate", MockAction())
+        assert router.action_count == 1
+
+        router.register("ai-impact", MockAction())
+        assert router.action_count == 2
+
+    def test_action_names(self):
+        router = LabelRouter()
+        assert router.action_names == []
+
+        router.register("ai-investigate", MockAction())
+        router.register("ai-impact", MockAction())
+
+        names = router.action_names
+        assert len(names) == 2
+        assert "MockAction" in names
+
 
 class TestBaseAction:
     def test_label_property_is_abstract(self):

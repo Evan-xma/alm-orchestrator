@@ -1,6 +1,6 @@
 """Label-to-action routing for the ALM Orchestrator."""
 
-from typing import Dict
+from typing import Dict, List
 from alm_orchestrator.actions.base import BaseAction
 
 
@@ -51,6 +51,24 @@ class LabelRouter:
             True if an action is registered, False otherwise.
         """
         return label in self._actions
+
+    @property
+    def action_count(self) -> int:
+        """Get the number of registered actions.
+
+        Returns:
+            The count of actions loaded from the actions directory.
+        """
+        return len(self._actions)
+
+    @property
+    def action_names(self) -> List[str]:
+        """Get the class names of all registered actions.
+
+        Returns:
+            A list of action class names as strings.
+        """
+        return [type(action).__name__ for action in self._actions.values()]
 
 
 def discover_actions(prompts_dir: str) -> LabelRouter:
