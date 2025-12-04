@@ -83,3 +83,40 @@ class JiraClient:
             Summary text.
         """
         return issue.fields.summary
+
+    def add_comment(self, issue_key: str, body: str) -> None:
+        """Add a comment to a Jira issue.
+
+        Args:
+            issue_key: The issue key (e.g., "TEST-123").
+            body: The comment text (supports Jira markup).
+        """
+        self._jira.add_comment(issue_key, body)
+
+    def add_label(self, issue_key: str, label: str) -> None:
+        """Add a label to a Jira issue.
+
+        Args:
+            issue_key: The issue key (e.g., "TEST-123").
+            label: The label to add.
+        """
+        issue = self._jira.issue(issue_key)
+        current_labels = list(issue.fields.labels)
+
+        if label not in current_labels:
+            current_labels.append(label)
+            issue.update(fields={"labels": current_labels})
+
+    def remove_label(self, issue_key: str, label: str) -> None:
+        """Remove a label from a Jira issue.
+
+        Args:
+            issue_key: The issue key (e.g., "TEST-123").
+            label: The label to remove.
+        """
+        issue = self._jira.issue(issue_key)
+        current_labels = list(issue.fields.labels)
+
+        if label in current_labels:
+            current_labels.remove(label)
+            issue.update(fields={"labels": current_labels})

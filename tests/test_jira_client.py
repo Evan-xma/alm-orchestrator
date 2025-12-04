@@ -73,3 +73,70 @@ class TestJiraClient:
         assert "ai-implement" in client.AI_LABELS
         assert "ai-code-review" in client.AI_LABELS
         assert "ai-security-review" in client.AI_LABELS
+
+
+class TestJiraClientUpdates:
+    def test_add_label(self, mock_config, mocker):
+        mock_jira = MagicMock()
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.labels = ["bug"]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        client.add_label("TEST-123", "ai-processing")
+
+        mock_issue.update.assert_called_once()
+        update_call = mock_issue.update.call_args
+        new_labels = update_call[1]["fields"]["labels"]
+        assert "ai-processing" in new_labels
+        assert "bug" in new_labels
+
+    def test_add_comment(self, mock_config, mocker):
+        mock_jira = MagicMock()
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+
+        client = JiraClient(mock_config)
+        client.add_comment("TEST-123", "AI analysis complete:\n\nRoot cause identified.")
+
+        mock_jira.add_comment.assert_called_once_with(
+            "TEST-123",
+            "AI analysis complete:\n\nRoot cause identified."
+        )
+
+    def test_remove_label(self, mock_config, mocker):
+        mock_jira = MagicMock()
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.labels = ["ai-investigate", "bug", "priority-high"]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        client.remove_label("TEST-123", "ai-investigate")
+
+        # Should update issue with label removed
+        mock_issue.update.assert_called_once()
+        update_call = mock_issue.update.call_args
+        new_labels = update_call[1]["fields"]["labels"]
+        assert "ai-investigate" not in new_labels
+        assert "bug" in new_labels
+        assert "priority-high" in new_labels
+
+    def test_remove_label_not_present(self, mock_config, mocker):
+        mock_jira = MagicMock()
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.labels = ["bug"]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        # Should not raise, just no-op
+        client.remove_label("TEST-123", "ai-investigate")
+
+        mock_issue.update.assert_not_called()
