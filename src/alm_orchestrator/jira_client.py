@@ -19,6 +19,7 @@ class JiraClient:
     ])
 
     PROCESSING_LABEL = "ai-processing"
+    MAX_RESULTS = 50
 
     def __init__(self, config: Config):
         """Initialize Jira client with configuration.
@@ -47,7 +48,7 @@ class JiraClient:
             f'AND labels != "{self.PROCESSING_LABEL}"'
         )
 
-        return self._jira.search_issues(jql, maxResults=50)
+        return self._jira.search_issues(jql, maxResults=self.MAX_RESULTS)
 
     def get_ai_labels(self, issue: Issue) -> List[str]:
         """Extract AI labels from an issue.
