@@ -89,3 +89,72 @@ class TestGitHubClient:
         client.cleanup("/tmp/some-temp-dir")
 
         mock_rmtree.assert_called_once_with("/tmp/some-temp-dir", ignore_errors=True)
+
+
+class TestGitHubClientPR:
+    def test_create_pull_request(self, mock_config, mocker):
+        mock_github = MagicMock()
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.number = 42
+        mock_pr.html_url = "https://github.com/acme-corp/recipe-api/pull/42"
+        mock_repo.create_pull.return_value = mock_pr
+        mock_github.get_repo.return_value = mock_repo
+        mocker.patch("alm_orchestrator.github_client.Github", return_value=mock_github)
+
+        client = GitHubClient(mock_config)
+        pr = client.create_pull_request(
+            branch="ai/fix-TEST-123",
+            title="fix: resolve orphaned recipes issue",
+            body="This PR fixes the orphaned recipes bug.\n\nJira: TEST-123"
+        )
+
+        assert pr.number == 42
+        mock_repo.create_pull.assert_called_once_with(
+            title="fix: resolve orphaned recipes issue",
+            body="This PR fixes the orphaned recipes bug.\n\nJira: TEST-123",
+            head="ai/fix-TEST-123",
+            base="main"
+        )
+
+    def test_add_pr_comment(self, mock_config, mocker):
+        mock_github = MagicMock()
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_repo.get_pull.return_value = mock_pr
+        mock_github.get_repo.return_value = mock_repo
+        mocker.patch("alm_orchestrator.github_client.Github", return_value=mock_github)
+
+        client = GitHubClient(mock_config)
+        client.add_pr_comment(42, "## Code Review\n\nLooks good!")
+
+        mock_repo.get_pull.assert_called_once_with(42)
+        mock_pr.create_issue_comment.assert_called_once_with("## Code Review\n\nLooks good!")
+
+    def test_get_pr_by_branch(self, mock_config, mocker):
+        mock_github = MagicMock()
+        mock_repo = MagicMock()
+        mock_pr = MagicMock()
+        mock_pr.number = 42
+        mock_pr.head.ref = "ai/fix-TEST-123"
+        mock_repo.get_pulls.return_value = [mock_pr]
+        mock_github.get_repo.return_value = mock_repo
+        mocker.patch("alm_orchestrator.github_client.Github", return_value=mock_github)
+
+        client = GitHubClient(mock_config)
+        pr = client.get_pr_by_branch("ai/fix-TEST-123")
+
+        assert pr is not None
+        assert pr.number == 42
+
+    def test_get_pr_by_branch_not_found(self, mock_config, mocker):
+        mock_github = MagicMock()
+        mock_repo = MagicMock()
+        mock_repo.get_pulls.return_value = []
+        mock_github.get_repo.return_value = mock_repo
+        mocker.patch("alm_orchestrator.github_client.Github", return_value=mock_github)
+
+        client = GitHubClient(mock_config)
+        pr = client.get_pr_by_branch("nonexistent-branch")
+
+        assert pr is None

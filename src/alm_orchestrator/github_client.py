@@ -107,3 +107,53 @@ class GitHubClient:
             work_dir: Path to remove.
         """
         shutil.rmtree(work_dir, ignore_errors=True)
+
+    def create_pull_request(
+        self,
+        branch: str,
+        title: str,
+        body: str,
+        base: str = "main"
+    ):
+        """Create a pull request.
+
+        Args:
+            branch: Head branch name.
+            title: PR title.
+            body: PR description body.
+            base: Base branch to merge into. Defaults to "main".
+
+        Returns:
+            The created PullRequest object.
+        """
+        return self._repo.create_pull(
+            title=title,
+            body=body,
+            head=branch,
+            base=base
+        )
+
+    def add_pr_comment(self, pr_number: int, body: str) -> None:
+        """Add a comment to a pull request.
+
+        Args:
+            pr_number: The PR number.
+            body: Comment text (supports GitHub markdown).
+        """
+        pr = self._repo.get_pull(pr_number)
+        pr.create_issue_comment(body)
+
+    def get_pr_by_branch(self, branch: str):
+        """Find an open PR for a given branch.
+
+        Args:
+            branch: The head branch name.
+
+        Returns:
+            PullRequest object if found, None otherwise.
+        """
+        prs = self._repo.get_pulls(state="open", head=f"{self._config.github_owner}:{branch}")
+        for pr in prs:
+            if pr.head.ref == branch:
+                return pr
+        return None
