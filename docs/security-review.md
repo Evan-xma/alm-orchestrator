@@ -8,10 +8,10 @@
 
 ## Executive Summary
 
-This security review of the ALM Orchestrator identified **1 high-severity**, **2 medium-severity**, and **5 low-severity** security concerns. The most critical issue is a **Python format string injection vulnerability** that could cause denial of service or information disclosure. Additionally, **prompt injection risks** exist due to unvalidated user input being passed to the AI system.
+This security review of the ALM Orchestrator identified **1 high-severity**, **2 medium-severity**, and **5 low-severity** security concerns. ~~The most critical issue is a **Python format string injection vulnerability** that could cause denial of service or information disclosure.~~ **UPDATE: SEC-001 has been resolved.** Additionally, **prompt injection risks** exist due to unvalidated user input being passed to the AI system.
 
 **Immediate Actions Required:**
-1. Replace `str.format()` with safe string templating (HIGH)
+1. ~~Replace `str.format()` with safe string templating (HIGH)~~ **RESOLVED** (commit 6e31f40)
 2. Implement prompt injection defenses (MEDIUM)
 3. Upgrade pip to version 25.3 when available (MEDIUM)
 
@@ -21,22 +21,26 @@ The codebase follows several security best practices including: proper use of en
 
 ## Findings Summary
 
-| ID | Severity | Category | Finding |
-|----|----------|----------|---------|
-| SEC-001 | HIGH | Injection | Python format string injection in prompt templating |
-| SEC-002 | MEDIUM | Injection | Prompt injection via Jira issue content |
-| SEC-003 | MEDIUM | Dependency | pip CVE-2025-8869 path traversal vulnerability |
-| SEC-004 | LOW | Secrets | GitHub token embedded in clone URL |
-| SEC-005 | LOW | Information Disclosure | Error details posted to Jira comments |
-| SEC-006 | LOW | Configuration | Missing .gitignore file |
-| SEC-007 | LOW | Dependency | PyJWT CVE-2025-45768 weak encryption (disputed) |
-| SEC-008 | LOW | Availability | No rate limiting on external API calls |
+| ID | Severity | Category | Finding | Status |
+|----|----------|----------|---------|--------|
+| SEC-001 | HIGH | Injection | Python format string injection in prompt templating | **RESOLVED** |
+| SEC-002 | MEDIUM | Injection | Prompt injection via Jira issue content | Open |
+| SEC-003 | MEDIUM | Dependency | pip CVE-2025-8869 path traversal vulnerability | Open |
+| SEC-004 | LOW | Secrets | GitHub token embedded in clone URL | Open |
+| SEC-005 | LOW | Information Disclosure | Error details posted to Jira comments | Open |
+| SEC-006 | LOW | Configuration | Missing .gitignore file | Open |
+| SEC-007 | LOW | Dependency | PyJWT CVE-2025-45768 weak encryption (disputed) | N/A |
+| SEC-008 | LOW | Availability | No rate limiting on external API calls | Open |
 
 ---
 
 ## Detailed Findings
 
-### SEC-001: Python Format String Injection (HIGH)
+### SEC-001: Python Format String Injection (HIGH) — RESOLVED
+
+> **Status:** RESOLVED
+> **Fixed in:** Commit `6e31f40`
+> **Date:** 2025-12-04
 
 **Location:** `src/alm_orchestrator/claude_executor.py:131`
 
@@ -45,39 +49,35 @@ The `execute_with_template()` method uses Python's `str.format()` with user-cont
 - Denial of service via KeyError exceptions
 - Potential information disclosure if format keys match template context variables
 
-**Vulnerable Code:**
+**Resolution:**
+Implemented Option 2 from the original recommendations. Added `_escape_format_string()` helper method that escapes `{` to `{{` and `}` to `}}` in all context values before calling `str.format()`. This neutralizes any format string injection attempts in user-controlled input.
+
+**Fixed Code:**
 ```python
+@staticmethod
+def _escape_format_string(value: str) -> str:
+    """Escape curly braces in user input to prevent format string injection."""
+    if not isinstance(value, str):
+        return value
+    return value.replace("{", "{{").replace("}", "}}")
+
 def execute_with_template(self, work_dir, template_path, context, allowed_tools=None):
     with open(template_path, "r") as f:
         template = f.read()
-    prompt = template.format(**context)  # VULNERABLE LINE
+
+    # Escape curly braces in context values to prevent format string injection
+    safe_context = {
+        key: self._escape_format_string(value)
+        for key, value in context.items()
+    }
+
+    prompt = template.format(**safe_context)
     return self.execute(work_dir, prompt, allowed_tools)
 ```
 
-**Attack Scenario:**
-An attacker creates a Jira issue with description: `{issue_key.__class__.__mro__}` which could expose Python class hierarchies, or `{__import__}` which will cause a KeyError and crash the processing.
-
-**Recommendation:**
-Replace `str.format()` with a safe templating approach:
-
-```python
-# Option 1: Use string.Template (safe, only supports $variable)
-from string import Template
-
-def execute_with_template(self, work_dir, template_path, context, allowed_tools=None):
-    with open(template_path, "r") as f:
-        template_text = f.read()
-    template = Template(template_text)
-    prompt = template.safe_substitute(context)
-    return self.execute(work_dir, prompt, allowed_tools)
-
-# Option 2: Escape user input before formatting
-def escape_format_string(text):
-    """Escape curly braces in user input."""
-    if text is None:
-        return ""
-    return text.replace("{", "{{").replace("}", "}}")
-```
+**Tests Added:**
+- `test_execute_with_template_escapes_format_strings` — verifies injection is prevented
+- `TestEscapeFormatString` — 6 unit tests for the helper method
 
 ---
 
@@ -340,15 +340,15 @@ The codebase follows several security best practices:
 
 ## Remediation Priority
 
-| Priority | Finding | Effort | Impact |
-|----------|---------|--------|--------|
-| 1 | SEC-001: Format string injection | Low | High |
-| 2 | SEC-002: Prompt injection | Medium | Medium |
-| 3 | SEC-006: Add .gitignore | Low | Low |
-| 4 | SEC-005: Sanitize errors | Low | Low |
-| 5 | SEC-003: Upgrade pip | Low | Medium |
-| 6 | SEC-004: Token in URL | Medium | Low |
-| 7 | SEC-008: Rate limiting | Medium | Low |
+| Priority | Finding | Effort | Impact | Status |
+|----------|---------|--------|--------|--------|
+| 1 | SEC-001: Format string injection | Low | High | **DONE** |
+| 2 | SEC-002: Prompt injection | Medium | Medium | Open |
+| 3 | SEC-006: Add .gitignore | Low | Low | Open |
+| 4 | SEC-005: Sanitize errors | Low | Low | Open |
+| 5 | SEC-003: Upgrade pip | Low | Medium | Open |
+| 6 | SEC-004: Token in URL | Medium | Low | Open |
+| 7 | SEC-008: Rate limiting | Medium | Low | Open |
 
 ---
 
