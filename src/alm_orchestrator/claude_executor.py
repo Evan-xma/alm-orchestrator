@@ -103,6 +103,20 @@ class ClaudeExecutor:
                 session_id="",
             )
 
+    @staticmethod
+    def _escape_format_string(value: str) -> str:
+        """Escape curly braces in user input to prevent format string injection.
+
+        Args:
+            value: The string value to escape.
+
+        Returns:
+            String with { and } replaced by {{ and }}.
+        """
+        if not isinstance(value, str):
+            return value
+        return value.replace("{", "{{").replace("}", "}}")
+
     def execute_with_template(
         self,
         work_dir: str,
@@ -128,5 +142,12 @@ class ClaudeExecutor:
         with open(template_path, "r") as f:
             template = f.read()
 
-        prompt = template.format(**context)
+        # Escape curly braces in context values to prevent format string injection
+        # (SEC-001: user-controlled Jira content could contain {malicious} patterns)
+        safe_context = {
+            key: self._escape_format_string(value)
+            for key, value in context.items()
+        }
+
+        prompt = template.format(**safe_context)
         return self.execute(work_dir, prompt, allowed_tools)

@@ -159,3 +159,62 @@ class TestClaudeExecutorTemplate:
         prompt_idx = call_args.index("-p") + 1
         assert "TEST-123" in call_args[prompt_idx]
         assert "Bug in recipe deletion" in call_args[prompt_idx]
+
+    def test_execute_with_template_escapes_format_strings(self, mocker, tmp_path):
+        """SEC-001: Verify format string injection is prevented."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=mock_json_response("Safe result"),
+            stderr=""
+        )
+
+        template_file = tmp_path / "test_template.md"
+        template_file.write_text("Issue: {issue_key}\nDescription: {issue_description}")
+
+        executor = ClaudeExecutor()
+        # Malicious input with format string attack
+        result = executor.execute_with_template(
+            work_dir="/tmp/repo",
+            template_path=str(template_file),
+            context={
+                "issue_key": "TEST-456",
+                "issue_description": "Attack: {__class__} and {config.github_token}"
+            }
+        )
+
+        # Should succeed without KeyError
+        assert result.content == "Safe result"
+
+        # Verify the curly braces were escaped (not interpreted)
+        call_args = mock_run.call_args[0][0]
+        prompt_idx = call_args.index("-p") + 1
+        prompt = call_args[prompt_idx]
+        assert "{__class__}" in prompt  # Literal braces in output
+        assert "{config.github_token}" in prompt
+
+
+class TestEscapeFormatString:
+    """Tests for the _escape_format_string helper."""
+
+    def test_escapes_single_braces(self):
+        assert ClaudeExecutor._escape_format_string("{foo}") == "{{foo}}"
+
+    def test_escapes_multiple_braces(self):
+        result = ClaudeExecutor._escape_format_string("a {x} b {y} c")
+        assert result == "a {{x}} b {{y}} c"
+
+    def test_handles_nested_braces(self):
+        result = ClaudeExecutor._escape_format_string("{a{b}c}")
+        assert result == "{{a{{b}}c}}"
+
+    def test_preserves_non_string_types(self):
+        assert ClaudeExecutor._escape_format_string(123) == 123
+        assert ClaudeExecutor._escape_format_string(None) is None
+        assert ClaudeExecutor._escape_format_string(True) is True
+
+    def test_handles_empty_string(self):
+        assert ClaudeExecutor._escape_format_string("") == ""
+
+    def test_handles_no_braces(self):
+        assert ClaudeExecutor._escape_format_string("plain text") == "plain text"
