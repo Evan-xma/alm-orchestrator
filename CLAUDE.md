@@ -93,3 +93,8 @@ Environment variables loaded from `.env`:
 4. Click **Create credentials** → **OAuth 2.0**
 5. Select scopes: `read:jira-work`, `write:jira-work`
 6. Save the Client ID and Client Secret (cannot be retrieved later)
+
+## Commit Guidelines
+
+- Do NOT add `Co-Authored-By` lines to commit messages
+- Do NOT sign your name in commit descriptions or PR descriptions
