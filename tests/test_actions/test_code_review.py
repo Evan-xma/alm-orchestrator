@@ -11,26 +11,6 @@ class TestCodeReviewAction:
         action = CodeReviewAction(prompts_dir="/tmp/prompts")
         assert action.label == "ai-code-review"
 
-    def test_extract_pr_number_from_url(self):
-        action = CodeReviewAction(prompts_dir="/tmp/prompts")
-
-        # GitHub URL format
-        assert action._extract_pr_number("PR: https://github.com/owner/repo/pull/42") == 42
-        assert action._extract_pr_number("See https://github.com/acme/api/pull/123 for details") == 123
-
-    def test_extract_pr_number_from_shorthand(self):
-        action = CodeReviewAction(prompts_dir="/tmp/prompts")
-
-        assert action._extract_pr_number("PR #42") == 42
-        assert action._extract_pr_number("PR: #99") == 99
-        assert action._extract_pr_number("Pull Request #15") == 15
-
-    def test_extract_pr_number_not_found(self):
-        action = CodeReviewAction(prompts_dir="/tmp/prompts")
-
-        assert action._extract_pr_number("No PR here") is None
-        assert action._extract_pr_number("") is None
-
     def test_execute_reviews_pr(self, mocker):
         mock_issue = MagicMock()
         mock_issue.key = "TEST-123"
@@ -38,6 +18,7 @@ class TestCodeReviewAction:
         mock_issue.fields.description = "PR: https://github.com/owner/repo/pull/42"
 
         mock_jira = MagicMock()
+        mock_jira.get_comments.return_value = []
 
         mock_pr = MagicMock()
         mock_pr.number = 42
@@ -76,6 +57,7 @@ class TestCodeReviewAction:
         mock_issue.fields.description = "No PR link here"
 
         mock_jira = MagicMock()
+        mock_jira.get_comments.return_value = []
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
@@ -92,3 +74,71 @@ class TestCodeReviewAction:
         # Should NOT clone or invoke Claude
         mock_github.clone_repo.assert_not_called()
         mock_claude.execute_with_template.assert_not_called()
+
+
+class TestCodeReviewPRInComments:
+    """Tests for finding PR in comments."""
+
+    @pytest.fixture
+    def action(self):
+        return CodeReviewAction(prompts_dir="/tmp/prompts")
+
+    @pytest.fixture
+    def mock_issue(self):
+        issue = MagicMock()
+        issue.key = "TEST-123"
+        issue.fields.description = "No PR in description"
+        return issue
+
+    @pytest.fixture
+    def mock_jira_client(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def mock_github_client(self):
+        client = MagicMock()
+        client.clone_repo.return_value = "/tmp/workdir"
+        return client
+
+    @pytest.fixture
+    def mock_claude_executor(self):
+        executor = MagicMock()
+        executor.execute_with_template.return_value = MagicMock(content="Review content")
+        return executor
+
+    def test_finds_pr_in_comments_when_not_in_description(
+        self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor
+    ):
+        """Test that action finds PR in comments when description has none."""
+        mock_jira_client.get_comments.return_value = ["PR #42"]
+
+        result = action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
+
+        assert "PR #42" in result
+        mock_github_client.add_pr_comment.assert_called_once()
+        call_args = mock_github_client.add_pr_comment.call_args
+        assert call_args[0][0] == 42  # PR number
+
+    def test_description_pr_takes_priority_over_comments(
+        self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor
+    ):
+        """Test that PR in description is used even when comments have different PR."""
+        mock_issue.fields.description = "PR #1"
+        mock_jira_client.get_comments.return_value = ["PR #99"]
+
+        result = action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
+
+        call_args = mock_github_client.add_pr_comment.call_args
+        assert call_args[0][0] == 1  # PR from description, not comments
+
+    def test_error_message_mentions_comments(
+        self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor
+    ):
+        """Test that error message tells user to check description or comments."""
+        mock_jira_client.get_comments.return_value = []
+
+        action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
+
+        call_args = mock_jira_client.add_comment.call_args
+        error_message = call_args[0][1]
+        assert "comments" in error_message.lower()
