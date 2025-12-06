@@ -18,8 +18,23 @@ A Python daemon that integrates Jira, Claude Code, and GitHub to automate AI-pow
 | `ai-recommend` | Suggest implementation approaches | No |
 | `ai-fix` | Implement a bug fix | Yes |
 | `ai-implement` | Implement a new feature | Yes |
-| `ai-code-review` | Review a pull request | No |
-| `ai-security-review` | Security-focused PR review | No |
+| `ai-code-review` | Review a pull request* | No |
+| `ai-security-review` | Security-focused PR review* | No |
+
+*Requires PR reference in issue. See [Specifying a Pull Request](#specifying-a-pull-request).
+
+### Specifying a Pull Request
+
+The `ai-code-review` and `ai-security-review` labels require a PR reference
+in the Jira issue. The orchestrator searches the issue description first,
+then comments (newest to oldest).
+
+Supported formats:
+- Full URL: `https://github.com/owner/repo/pull/42`
+- Short: `PR #42` or `PR: 42`
+- Explicit: `Pull Request #42`
+
+If multiple PRs appear in comments, the most recent one is used.
 
 ## Requirements
 
