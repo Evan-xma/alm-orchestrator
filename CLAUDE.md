@@ -4,6 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Test Commands
 
+**Important:** Always activate the virtual environment first:
+
+```bash
+source .venv/bin/activate
+```
+
+Then run commands:
+
 ```bash
 # Install dependencies (editable mode with dev tools)
 pip install -e ".[dev]"
