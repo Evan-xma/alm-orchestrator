@@ -65,7 +65,8 @@ class Daemon:
 
             for label in ai_labels:
                 if self._router.has_action(label):
-                    # Mark as processing to prevent duplicate pickup
+                    # Remove original label and mark as processing to prevent duplicate pickup
+                    self._jira.remove_label(issue.key, label)
                     self._jira.add_label(issue.key, JiraClient.PROCESSING_LABEL)
 
                     try:
@@ -86,8 +87,6 @@ class Daemon:
                             issue.key,
                             f"## AI Action Failed\n\n**Label:** {label}\n**Error:** {str(e)}"
                         )
-                        # Remove the action label so it won't retry automatically
-                        self._jira.remove_label(issue.key, label)
                     finally:
                         # Always remove processing label
                         self._jira.remove_label(issue.key, JiraClient.PROCESSING_LABEL)

@@ -60,7 +60,7 @@ class TestDaemon:
         mock_action.execute.assert_called_once()
         assert processed == 1
 
-    def test_poll_adds_processing_label(self, mock_config, mocker):
+    def test_poll_removes_original_label_and_adds_processing_label(self, mock_config, mocker):
         mock_jira = MagicMock()
         mock_github = MagicMock()
         mock_claude = MagicMock()
@@ -82,9 +82,12 @@ class TestDaemon:
         daemon = Daemon(mock_config, prompts_dir="/tmp/prompts")
         daemon.poll_once()
 
-        # Verify processing label was added then removed
-        mock_jira.add_label.assert_called_with("TEST-123", "ai-processing")
-        mock_jira.remove_label.assert_called_with("TEST-123", "ai-processing")
+        # Verify original label removed, processing label added, then processing label removed
+        remove_calls = mock_jira.remove_label.call_args_list
+        assert len(remove_calls) == 2
+        assert remove_calls[0] == mocker.call("TEST-123", "ai-investigate")
+        assert remove_calls[1] == mocker.call("TEST-123", "ai-processing")
+        mock_jira.add_label.assert_called_once_with("TEST-123", "ai-processing")
 
     def test_poll_handles_action_error(self, mock_config, mocker):
         mock_jira = MagicMock()
@@ -96,7 +99,8 @@ class TestDaemon:
         mock_jira.fetch_issues_with_ai_labels.return_value = [mock_issue]
         mock_jira.get_ai_labels.return_value = ["ai-investigate"]
 
-        mocker.patch("alm_orchestrator.daemon.JiraClient", return_value=mock_jira)
+        mock_jira_class = mocker.patch("alm_orchestrator.daemon.JiraClient", return_value=mock_jira)
+        mock_jira_class.PROCESSING_LABEL = "ai-processing"
         mocker.patch("alm_orchestrator.daemon.GitHubClient", return_value=mock_github)
         mocker.patch("alm_orchestrator.daemon.ClaudeExecutor", return_value=mock_claude)
 
@@ -116,8 +120,11 @@ class TestDaemon:
         assert "Failed" in comment
         assert "Action failed" in comment
 
-        # Processing label should still be removed
-        mock_jira.remove_label.assert_called()
+        # Original label removed upfront, processing label removed in finally
+        remove_calls = mock_jira.remove_label.call_args_list
+        assert len(remove_calls) == 2
+        assert remove_calls[0] == mocker.call("TEST-123", "ai-investigate")
+        assert remove_calls[1] == mocker.call("TEST-123", "ai-processing")
 
     def test_run_can_be_stopped(self, mock_config, mocker):
         mock_jira = MagicMock()
