@@ -1,20 +1,20 @@
-"""Tests for code review action handler."""
+"""Tests for security review action handler."""
 
 import pytest
 from unittest.mock import MagicMock
-from alm_orchestrator.actions.code_review import CodeReviewAction
+from alm_orchestrator.actions.security_review import SecurityReviewAction
 from alm_orchestrator.claude_executor import ClaudeResult
 
 
-class TestCodeReviewAction:
+class TestSecurityReviewAction:
     def test_label_property(self):
-        action = CodeReviewAction(prompts_dir="/tmp/prompts")
-        assert action.label == "ai-code-review"
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
+        assert action.label == "ai-security-review"
 
     def test_execute_reviews_pr(self, mocker):
         mock_issue = MagicMock()
         mock_issue.key = "TEST-123"
-        mock_issue.fields.summary = "Review fix for orphaned recipes"
+        mock_issue.fields.summary = "Security review for auth changes"
         mock_issue.fields.description = "PR: https://github.com/owner/repo/pull/42"
 
         mock_jira = MagicMock()
@@ -27,7 +27,7 @@ class TestCodeReviewAction:
         mock_github.clone_repo.return_value = "/tmp/work-dir"
 
         mock_result = ClaudeResult(
-            content="## Code Review\n\nApproved with minor suggestions.",
+            content="## Security Review\n\nNo vulnerabilities found.",
             cost_usd=0.05,
             duration_ms=5000,
             session_id="test-session"
@@ -35,17 +35,17 @@ class TestCodeReviewAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = CodeReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify PR comment was posted
         mock_github.add_pr_comment.assert_called_once()
         pr_number, comment = mock_github.add_pr_comment.call_args[0]
         assert pr_number == 42
-        assert "Code Review" in comment
+        assert "Security Review" in comment
 
         # Verify Jira label removed
-        mock_jira.remove_label.assert_called_with("TEST-123", "ai-code-review")
+        mock_jira.remove_label.assert_called_with("TEST-123", "ai-security-review")
 
         # Verify cleanup
         mock_github.cleanup.assert_called_once()
@@ -61,7 +61,7 @@ class TestCodeReviewAction:
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
-        action = CodeReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Should post error comment and remove label
@@ -69,19 +69,19 @@ class TestCodeReviewAction:
         comment = mock_jira.add_comment.call_args[0][1]
         assert "Could not find PR" in comment
 
-        mock_jira.remove_label.assert_called_with("TEST-123", "ai-code-review")
+        mock_jira.remove_label.assert_called_with("TEST-123", "ai-security-review")
 
         # Should NOT clone or invoke Claude
         mock_github.clone_repo.assert_not_called()
         mock_claude.execute_with_template.assert_not_called()
 
 
-class TestCodeReviewPRInComments:
+class TestSecurityReviewPRInComments:
     """Tests for finding PR in comments."""
 
     @pytest.fixture
     def action(self):
-        return CodeReviewAction(prompts_dir="/tmp/prompts")
+        return SecurityReviewAction(prompts_dir="/tmp/prompts")
 
     @pytest.fixture
     def mock_issue(self):
@@ -117,19 +117,7 @@ class TestCodeReviewPRInComments:
         assert "PR #42" in result
         mock_github_client.add_pr_comment.assert_called_once()
         call_args = mock_github_client.add_pr_comment.call_args
-        assert call_args[0][0] == 42  # PR number
-
-    def test_description_pr_takes_priority_over_comments(
-        self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor
-    ):
-        """Test that PR in description is used even when comments have different PR."""
-        mock_issue.fields.description = "PR #1"
-        mock_jira_client.get_comments.return_value = ["PR #99"]
-
-        result = action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
-
-        call_args = mock_github_client.add_pr_comment.call_args
-        assert call_args[0][0] == 1  # PR from description, not comments
+        assert call_args[0][0] == 42
 
     def test_error_message_mentions_comments(
         self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor

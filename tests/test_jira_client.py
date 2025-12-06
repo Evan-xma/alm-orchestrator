@@ -156,3 +156,55 @@ class TestJiraClientUpdates:
         client.remove_label("TEST-123", "ai-investigate")
 
         mock_issue.update.assert_not_called()
+
+
+class TestJiraClientComments:
+    """Tests for comment-related methods."""
+
+    def test_get_comments_returns_bodies_newest_first(self, mock_config, mocker):
+        """Test that get_comments returns comment bodies sorted newest-first."""
+        mock_jira = MagicMock()
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+        mocker.patch.object(OAuthTokenManager, "get_token", return_value="mock-access-token")
+        mocker.patch.object(OAuthTokenManager, "get_api_url", return_value="https://api.atlassian.com/ex/jira/mock-cloud-id")
+
+        # Create mock comments with created timestamps
+        mock_comment_1 = MagicMock()
+        mock_comment_1.body = "First comment"
+        mock_comment_1.created = "2024-01-01T10:00:00.000+0000"
+
+        mock_comment_2 = MagicMock()
+        mock_comment_2.body = "Second comment"
+        mock_comment_2.created = "2024-01-02T10:00:00.000+0000"
+
+        mock_comment_3 = MagicMock()
+        mock_comment_3.body = "Third comment"
+        mock_comment_3.created = "2024-01-03T10:00:00.000+0000"
+
+        # Mock issue with comments in arbitrary order
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = [mock_comment_2, mock_comment_1, mock_comment_3]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_comments("TEST-123")
+
+        # Should be sorted newest-first
+        assert result == ["Third comment", "Second comment", "First comment"]
+        mock_jira.issue.assert_called_once_with("TEST-123", fields="comment")
+
+    def test_get_comments_returns_empty_list_when_no_comments(self, mock_config, mocker):
+        """Test that get_comments returns empty list when issue has no comments."""
+        mock_jira = MagicMock()
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+        mocker.patch.object(OAuthTokenManager, "get_token", return_value="mock-access-token")
+        mocker.patch.object(OAuthTokenManager, "get_api_url", return_value="https://api.atlassian.com/ex/jira/mock-cloud-id")
+
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = []
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_comments("TEST-123")
+
+        assert result == []

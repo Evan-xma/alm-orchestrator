@@ -229,3 +229,21 @@ class JiraClient:
         if label in current_labels:
             current_labels.remove(label)
             issue.update(fields={"labels": current_labels})
+
+    def get_comments(self, issue_key: str) -> List[str]:
+        """Get comment bodies for an issue, sorted newest-first.
+
+        Args:
+            issue_key: The issue key (e.g., "TEST-123").
+
+        Returns:
+            List of comment body strings, ordered from newest to oldest.
+        """
+        issue = self._get_jira().issue(issue_key, fields="comment")
+        comments = issue.fields.comment.comments
+        sorted_comments = sorted(
+            comments,
+            key=lambda c: c.created,
+            reverse=True
+        )
+        return [c.body for c in sorted_comments]
