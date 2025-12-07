@@ -65,6 +65,8 @@ class CodeReviewAction(BaseAction):
                 context={
                     "issue_key": issue_key,
                     "changed_files": changed_files_text,
+                    "pr_title": pr_info["title"],
+                    "pr_description": pr_info["body"],
                 },
                 action="code_review",
             )

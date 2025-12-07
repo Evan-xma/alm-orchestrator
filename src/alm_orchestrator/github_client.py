@@ -170,13 +170,13 @@ class GitHubClient:
         pr.create_issue_comment(body)
 
     def get_pr_info(self, pr_number: int) -> dict:
-        """Get PR information including head branch and changed files.
+        """Get PR information including head branch, changed files, and description.
 
         Args:
             pr_number: The PR number.
 
         Returns:
-            Dict with keys: head_branch, base_branch, changed_files (list of filenames).
+            Dict with keys: head_branch, base_branch, changed_files, title, body.
         """
         logger.debug(f"Getting PR info for #{pr_number}")
         pr = self._repo.get_pull(pr_number)
@@ -185,6 +185,8 @@ class GitHubClient:
             "head_branch": pr.head.ref,
             "base_branch": pr.base.ref,
             "changed_files": changed_files,
+            "title": pr.title,
+            "body": pr.body or "",
         }
 
     def get_pr_by_branch(self, branch: str):

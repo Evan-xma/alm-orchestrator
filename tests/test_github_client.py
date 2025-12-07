@@ -165,6 +165,8 @@ class TestGitHubClientPR:
         mock_pr = MagicMock()
         mock_pr.head.ref = "feature/add-user-auth"
         mock_pr.base.ref = "main"
+        mock_pr.title = "Add user authentication"
+        mock_pr.body = "This PR adds OAuth2 authentication to the API."
 
         mock_file1 = MagicMock()
         mock_file1.filename = "src/auth.py"
@@ -182,4 +184,6 @@ class TestGitHubClientPR:
         assert pr_info["head_branch"] == "feature/add-user-auth"
         assert pr_info["base_branch"] == "main"
         assert pr_info["changed_files"] == ["src/auth.py", "tests/test_auth.py"]
+        assert pr_info["title"] == "Add user authentication"
+        assert pr_info["body"] == "This PR adds OAuth2 authentication to the API."
         mock_repo.get_pull.assert_called_once_with(42)

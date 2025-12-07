@@ -1,7 +1,9 @@
 # Code Review
 
-## Context
-Reviewing pull request changes for quality and correctness.
+## Pull Request
+**{pr_title}**
+
+{pr_description}
 
 ## Changed Files
 Review ONLY these files that were modified in the pull request:
@@ -11,7 +13,7 @@ Review ONLY these files that were modified in the pull request:
 
 Read each of the files listed above and perform a thorough code review focusing on:
 
-1. **Correctness** - Does the code do what it claims?
+1. **Correctness** - Does the code achieve the goals stated in the PR description?
 2. **Design** - Is the approach sound? Are there better alternatives?
 3. **Readability** - Is the code clear and well-organized?
 4. **Testing** - Are there adequate tests? Are edge cases covered?

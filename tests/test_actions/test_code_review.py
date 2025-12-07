@@ -25,6 +25,8 @@ class TestCodeReviewAction:
             "head_branch": "feature/fix-recipes",
             "base_branch": "main",
             "changed_files": ["src/recipes.py", "tests/test_recipes.py"],
+            "title": "Fix orphaned recipes bug",
+            "body": "This PR fixes the bug where recipes become orphaned.",
         }
         mock_github.clone_repo.return_value = "/tmp/work-dir"
 
@@ -116,6 +118,8 @@ class TestCodeReviewPRInComments:
             "head_branch": "feature/test-branch",
             "base_branch": "main",
             "changed_files": ["src/test.py"],
+            "title": "Test PR",
+            "body": "Test PR description",
         }
         client.clone_repo.return_value = "/tmp/workdir"
         return client

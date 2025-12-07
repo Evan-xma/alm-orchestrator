@@ -25,6 +25,8 @@ class TestSecurityReviewAction:
             "head_branch": "feature/auth-changes",
             "base_branch": "main",
             "changed_files": ["src/auth.py", "src/login.py"],
+            "title": "Add authentication changes",
+            "body": "This PR adds OAuth2 support to the login flow.",
         }
         mock_github.clone_repo.return_value = "/tmp/work-dir"
 
@@ -116,6 +118,8 @@ class TestSecurityReviewPRInComments:
             "head_branch": "feature/test-branch",
             "base_branch": "main",
             "changed_files": ["src/test.py"],
+            "title": "Test PR",
+            "body": "Test PR description",
         }
         client.clone_repo.return_value = "/tmp/workdir"
         return client

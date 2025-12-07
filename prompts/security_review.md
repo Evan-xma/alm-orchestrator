@@ -1,7 +1,9 @@
 # Security Review
 
-## Context
-Reviewing pull request changes for security vulnerabilities.
+## Pull Request
+**{pr_title}**
+
+{pr_description}
 
 ## Changed Files
 Review ONLY these files that were modified in the pull request:
@@ -17,6 +19,8 @@ Read each of the files listed above and perform a security-focused review checki
 4. **Input validation** - All inputs properly validated?
 5. **Dependencies** - Known vulnerable dependencies?
 6. **OWASP Top 10** - Any of the common vulnerabilities?
+
+Consider the PR description when evaluating security implications of the changes.
 
 IMPORTANT: Only review the files listed above. Do not review other files in the repository.
 
