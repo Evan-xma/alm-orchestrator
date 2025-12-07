@@ -81,7 +81,7 @@ Each action has a corresponding sandbox settings file in `prompts/`:
 | `recommend` | `prompts/recommend.json` | Read-only, no network |
 | `code_review` | `prompts/code_review.json` | Read-only, no network |
 | `security_review` | `prompts/security_review.json` | Read-only, no network |
-| `fix` | `prompts/fix.json` | Read-write, no network |
+| `fix` | `prompts/fix.json` | Read-write, GitHub access |
 | `implement` | `prompts/implement.json` | Read-write, WebFetch allowed |
 
 Convention: `prompts/{action}.md` (prompt) + `prompts/{action}.json` (settings)

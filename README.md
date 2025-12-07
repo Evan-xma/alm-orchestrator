@@ -142,7 +142,7 @@ Each action runs Claude Code in a sandboxed environment with restricted permissi
 | `recommend` | `prompts/recommend.json` | Read-only | Blocked | No |
 | `code_review` | `prompts/code_review.json` | Read-only | Blocked | No |
 | `security_review` | `prompts/security_review.json` | Read-only | Blocked | No |
-| `fix` | `prompts/fix.json` | Read-write | Blocked | Yes |
+| `fix` | `prompts/fix.json` | Read-write | GitHub | Yes |
 | `implement` | `prompts/implement.json` | Read-write | WebFetch | Yes |
 
 All profiles:
