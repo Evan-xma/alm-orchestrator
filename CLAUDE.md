@@ -107,4 +107,4 @@ Environment variables loaded from `.env`:
 ## Commit Guidelines
 
 - Do NOT add `Co-Authored-By` lines to commit messages
-- Do NOT sign your name in commit descriptions or PR descriptions
+- Do NOT sign Claude Code in commit descriptions or PR descriptions
