@@ -1,7 +1,10 @@
 """Recommendation action handler."""
 
+import logging
 import os
 from alm_orchestrator.actions.base import BaseAction
+
+logger = logging.getLogger(__name__)
 
 
 class RecommendAction(BaseAction):
@@ -27,6 +30,21 @@ class RecommendAction(BaseAction):
         summary = issue.fields.summary
         description = issue.fields.description or ""
 
+        # Check for prior investigation results
+        investigation_comment = jira_client.get_investigation_comment(issue_key)
+        if investigation_comment:
+            investigation_section = (
+                "## Prior Investigation\n\n"
+                "The following investigation was already performed on this issue:\n\n"
+                f"{investigation_comment}"
+            )
+        else:
+            logger.debug(
+                f"No investigation comment found for {issue_key} "
+                f"from account {jira_client.account_id}"
+            )
+            investigation_section = ""
+
         work_dir = github_client.clone_repo()
 
         try:
@@ -38,6 +56,7 @@ class RecommendAction(BaseAction):
                     "issue_key": issue_key,
                     "issue_summary": summary,
                     "issue_description": description,
+                    "investigation_section": investigation_section,
                 },
                 action="recommend",
             )
