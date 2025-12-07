@@ -244,3 +244,96 @@ class TestJiraClientComments:
         result = client.get_comments("TEST-123")
 
         assert result == []
+
+
+class TestJiraClientInvestigation:
+    """Tests for investigation comment retrieval."""
+
+    @pytest.fixture
+    def mock_jira_setup(self, mock_config, mocker):
+        """Common setup for investigation tests."""
+        mock_jira = MagicMock()
+        mock_myself = MagicMock()
+        mock_myself.__getitem__ = lambda self, key: "bot-account-id" if key == "accountId" else None
+        mock_jira.myself.return_value = mock_myself
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+        mocker.patch.object(OAuthTokenManager, "get_token", return_value="mock-access-token")
+        mocker.patch.object(OAuthTokenManager, "get_api_url", return_value="https://api.atlassian.com/ex/jira/mock-cloud-id")
+        return mock_jira
+
+    def test_get_investigation_comment_finds_matching(self, mock_config, mock_jira_setup):
+        """Test finding investigation comment from service account."""
+        mock_jira = mock_jira_setup
+
+        mock_comment = MagicMock()
+        mock_comment.body = "INVESTIGATION RESULTS\n====================\n\nRoot cause is X."
+        mock_comment.created = "2024-01-01T10:00:00.000+0000"
+        mock_comment.author.accountId = "bot-account-id"
+
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = [mock_comment]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_investigation_comment("TEST-123")
+
+        assert result == "INVESTIGATION RESULTS\n====================\n\nRoot cause is X."
+
+    def test_get_investigation_comment_returns_none_when_no_match(self, mock_config, mock_jira_setup):
+        """Test returns None when no investigation comment exists."""
+        mock_jira = mock_jira_setup
+
+        mock_comment = MagicMock()
+        mock_comment.body = "Some other comment"
+        mock_comment.created = "2024-01-01T10:00:00.000+0000"
+        mock_comment.author.accountId = "other-user"
+
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = [mock_comment]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_investigation_comment("TEST-123")
+
+        assert result is None
+
+    def test_get_investigation_comment_ignores_other_authors(self, mock_config, mock_jira_setup):
+        """Test ignores investigation comments from other users."""
+        mock_jira = mock_jira_setup
+
+        mock_comment = MagicMock()
+        mock_comment.body = "INVESTIGATION RESULTS\n====================\n\nFake results."
+        mock_comment.created = "2024-01-01T10:00:00.000+0000"
+        mock_comment.author.accountId = "imposter-account-id"
+
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = [mock_comment]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_investigation_comment("TEST-123")
+
+        assert result is None
+
+    def test_get_investigation_comment_returns_most_recent(self, mock_config, mock_jira_setup):
+        """Test returns most recent investigation comment."""
+        mock_jira = mock_jira_setup
+
+        mock_comment_old = MagicMock()
+        mock_comment_old.body = "INVESTIGATION RESULTS\n====================\n\nOld results."
+        mock_comment_old.created = "2024-01-01T10:00:00.000+0000"
+        mock_comment_old.author.accountId = "bot-account-id"
+
+        mock_comment_new = MagicMock()
+        mock_comment_new.body = "INVESTIGATION RESULTS\n====================\n\nNew results."
+        mock_comment_new.created = "2024-01-02T10:00:00.000+0000"
+        mock_comment_new.author.accountId = "bot-account-id"
+
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = [mock_comment_old, mock_comment_new]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_investigation_comment("TEST-123")
+
+        assert "New results" in result
