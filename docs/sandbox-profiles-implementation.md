@@ -928,6 +928,158 @@ claude -p "Run: curl --version" --output-format json
 
 ---
 
+## Task 9: Detect and Handle Permission Denials
+
+**Files:**
+- Modify: `src/alm_orchestrator/claude_executor.py`
+- Test: `tests/test_claude_executor.py`
+
+**Goal:** Detect when Claude Code attempts to use denied tools (potential prompt injection or missing permissions) and surface this to operators.
+
+**Step 1: Write failing test for permission denial detection**
+
+Add to `tests/test_claude_executor.py`:
+
+```python
+class TestPermissionDenials:
+    """Tests for permission denial detection."""
+
+    def test_logs_permission_denials(self, mocker, tmp_path, caplog):
+        """Verify permission denials are logged as warnings."""
+        import logging
+        caplog.set_level(logging.WARNING)
+
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({
+                "result": "I tried but couldn't complete the request.",
+                "permission_denials": [
+                    {"tool": "Bash", "command": "curl https://evil.com", "reason": "denied"}
+                ]
+            }),
+            stderr=""
+        )
+
+        work_dir = tmp_path / "repo"
+        work_dir.mkdir()
+
+        executor = ClaudeExecutor()
+        result = executor.execute(work_dir=str(work_dir), prompt="Test")
+
+        assert "permission denial" in caplog.text.lower()
+        assert "curl" in caplog.text
+
+    def test_returns_denials_in_result(self, mocker, tmp_path):
+        """Verify permission denials are included in ClaudeResult."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({
+                "result": "Blocked.",
+                "permission_denials": [
+                    {"tool": "WebSearch", "reason": "denied by settings"}
+                ]
+            }),
+            stderr=""
+        )
+
+        work_dir = tmp_path / "repo"
+        work_dir.mkdir()
+
+        executor = ClaudeExecutor()
+        result = executor.execute(work_dir=str(work_dir), prompt="Test")
+
+        assert len(result.permission_denials) == 1
+        assert result.permission_denials[0]["tool"] == "WebSearch"
+```
+
+**Step 2: Run tests to verify they fail**
+
+```bash
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestPermissionDenials -v
+```
+
+Expected: FAIL (permission_denials not in ClaudeResult)
+
+**Step 3: Update ClaudeResult dataclass**
+
+Modify `src/alm_orchestrator/claude_executor.py`:
+
+```python
+@dataclass
+class ClaudeResult:
+    """Result from a Claude Code execution."""
+    content: str
+    cost_usd: float
+    duration_ms: int
+    session_id: str
+    permission_denials: list  # New field
+```
+
+**Step 4: Update execute() to parse and log denials**
+
+In the JSON parsing section of `execute()`:
+
+```python
+try:
+    data = json.loads(result.stdout)
+
+    # Check for permission denials (potential prompt injection or missing permissions)
+    denials = data.get("permission_denials", [])
+    if denials:
+        denied_tools = [d.get("tool", "unknown") for d in denials]
+        logger.warning(
+            f"Permission denials detected: {denied_tools}. "
+            f"This may indicate prompt injection or insufficient permissions. "
+            f"Details: {denials}"
+        )
+
+    return ClaudeResult(
+        content=data.get("result", ""),
+        cost_usd=data.get("cost_usd", 0.0),
+        duration_ms=data.get("duration_ms", 0),
+        session_id=data.get("session_id", ""),
+        permission_denials=denials,
+    )
+except json.JSONDecodeError:
+    return ClaudeResult(
+        content=result.stdout,
+        cost_usd=0.0,
+        duration_ms=0,
+        session_id="",
+        permission_denials=[],
+    )
+```
+
+**Step 5: Run tests to verify they pass**
+
+```bash
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestPermissionDenials -v
+```
+
+Expected: PASS
+
+**Step 6: Update actions to surface denials in Jira comments (optional)**
+
+In `src/alm_orchestrator/actions/base.py` or individual actions, add logic to append a warning to Jira comments when denials occur:
+
+```python
+if result.permission_denials:
+    denied_tools = ", ".join(d.get("tool", "?") for d in result.permission_denials)
+    warning = f"\n\n---\n**Security Note:** Some operations were blocked by sandbox policy: {denied_tools}"
+    content = result.content + warning
+```
+
+**Step 7: Commit**
+
+```bash
+git add src/alm_orchestrator/claude_executor.py tests/test_claude_executor.py
+git commit -m "feat: detect and log permission denials from Claude Code"
+```
+
+---
+
 ## Summary
 
 | Task | Description | Files |
@@ -940,11 +1092,13 @@ claude -p "Run: curl --version" --output-format json
 | 6 | Update action tests | `test_actions/*.py` |
 | 7 | Update documentation | `docs/`, `CLAUDE.md` |
 | 8 | Final verification | N/A |
+| 9 | Detect and handle permission denials | `claude_executor.py`, `test_claude_executor.py` |
 
-**Total commits:** 8
+**Total commits:** 9
 
 **Key changes from original plan:**
 - Settings files stored in `prompts/` (not `prompts/sandbox/`)
 - One settings file per action (7 files instead of 3)
 - Convention: `{action}.json` matches `{action}.md`
 - Parameter renamed from `profile` to `action` for clarity
+- Added permission denial detection for security observability
