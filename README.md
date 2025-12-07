@@ -127,7 +127,45 @@ class MyAction(BaseAction):
 
 2. Create `prompts/{name}.md` with the prompt template
 
-3. Restart the daemon — actions are auto-discovered
+3. Create `prompts/{name}.json` with sandbox settings (see below)
+
+4. Restart the daemon — actions are auto-discovered
+
+## Security: Sandbox Profiles
+
+Each action runs Claude Code in a sandboxed environment with restricted permissions. Settings files in `prompts/` define what each action can do:
+
+| Action | Settings File | Filesystem | Network | Write/Edit |
+|--------|---------------|------------|---------|------------|
+| `investigate` | `prompts/investigate.json` | Read-only | Blocked | No |
+| `impact` | `prompts/impact.json` | Read-only | Blocked | No |
+| `recommend` | `prompts/recommend.json` | Read-only | Blocked | No |
+| `code_review` | `prompts/code_review.json` | Read-only | Blocked | No |
+| `security_review` | `prompts/security_review.json` | Read-only | Blocked | No |
+| `fix` | `prompts/fix.json` | Read-write | Blocked | Yes |
+| `implement` | `prompts/implement.json` | Read-write | WebFetch | Yes |
+
+All profiles:
+- Enable OS-level sandboxing (bubblewrap on Linux)
+- Block access to `.env` files and credentials
+- Deny network tools (`curl`, `wget`, `nc`, `ssh`)
+- Restrict Claude Code to the cloned repository directory
+
+Permission denials are logged as warnings for security monitoring.
+
+### Customizing Permissions
+
+Edit the JSON settings files in `prompts/` to adjust permissions for your environment. For example, to allow additional build tools:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(my-custom-tool:*)"
+    ]
+  }
+}
+```
 
 ## Development
 
