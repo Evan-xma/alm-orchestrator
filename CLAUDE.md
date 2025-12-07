@@ -70,11 +70,21 @@ Label-to-template convention: `ai-investigate` → `prompts/investigate.md`
 | `ai-code-review` | Code review on PR | No |
 | `ai-security-review` | Security review on PR | No |
 
-### Claude Code Headless Mode
+### Sandbox Settings
 
-Actions use different tool profiles:
-- **Read-only** (`Bash,Read,Glob,Grep`): analysis and review actions
-- **Read-write** (`Bash,Read,Write,Edit,Glob,Grep`): fix and implement actions
+Each action has a corresponding sandbox settings file in `prompts/`:
+
+| Action | Settings File | Permissions |
+|--------|---------------|-------------|
+| `investigate` | `prompts/investigate.json` | Read-only, no network |
+| `impact` | `prompts/impact.json` | Read-only, no network |
+| `recommend` | `prompts/recommend.json` | Read-only, no network |
+| `code_review` | `prompts/code_review.json` | Read-only, no network |
+| `security_review` | `prompts/security_review.json` | Read-only, no network |
+| `fix` | `prompts/fix.json` | Read-write, no network |
+| `implement` | `prompts/implement.json` | Read-write, WebFetch allowed |
+
+Convention: `prompts/{action}.md` (prompt) + `prompts/{action}.json` (settings)
 
 ### Configuration
 

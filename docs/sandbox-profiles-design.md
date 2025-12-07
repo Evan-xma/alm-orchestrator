@@ -1,7 +1,7 @@
 # Sandbox Profiles Design
 
 **Date:** 2025-12-07
-**Status:** Draft
+**Status:** Implemented
 **Related:** SEC-002 (Prompt Injection via Jira Content)
 
 ---
