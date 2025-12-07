@@ -218,3 +218,38 @@ class TestEscapeFormatString:
 
     def test_handles_no_braces(self):
         assert ClaudeExecutor._escape_format_string("plain text") == "plain text"
+
+
+class TestSandboxSettings:
+    """Tests for sandbox settings installation."""
+
+    def test_installs_settings_to_settings_local(self, mocker, tmp_path):
+        """Verify settings file is copied to .claude/settings.local.json."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=mock_json_response("Done"),
+            stderr=""
+        )
+
+        # Create mock prompts directory with settings file
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        settings_file = prompts_dir / "investigate.json"
+        settings_file.write_text('{"sandbox": {"enabled": true}}')
+
+        # Create work directory
+        work_dir = tmp_path / "repo"
+        work_dir.mkdir()
+
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
+        executor.execute(
+            work_dir=str(work_dir),
+            prompt="Test prompt",
+            action="investigate"
+        )
+
+        # Verify settings.local.json was created
+        dest_file = work_dir / ".claude" / "settings.local.json"
+        assert dest_file.exists()
+        assert '"sandbox"' in dest_file.read_text()

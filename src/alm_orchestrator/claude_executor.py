@@ -2,9 +2,11 @@
 
 import json
 import logging
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -29,32 +31,68 @@ class ClaudeExecutor:
 
     DEFAULT_TIMEOUT_SECONDS = 600  # 10 minutes
 
-    # Tool profiles for different action types
+    # Tool profiles for different action types (legacy, kept for compatibility)
     TOOLS_READONLY = "Bash,Read,Glob,Grep"
     TOOLS_READWRITE = "Bash,Read,Write,Edit,Glob,Grep"
 
-    def __init__(self, timeout_seconds: Optional[int] = None):
+    def __init__(
+        self,
+        timeout_seconds: Optional[int] = None,
+        prompts_dir: Optional[str] = None
+    ):
         """Initialize the executor.
 
         Args:
             timeout_seconds: Maximum time to wait for Claude Code to complete.
                            Defaults to 600 seconds (10 minutes).
+            prompts_dir: Path to prompts directory containing {action}.json settings files.
+                        If None, sandbox settings are not used.
         """
         self._timeout = timeout_seconds or self.DEFAULT_TIMEOUT_SECONDS
+        self._prompts_dir = Path(prompts_dir) if prompts_dir else None
+
+    def _install_sandbox_settings(self, work_dir: str, action: str) -> None:
+        """Install sandbox settings for an action to the working directory.
+
+        Args:
+            work_dir: The working directory (cloned repo).
+            action: Name of the action (matches {action}.json file).
+
+        Raises:
+            FileNotFoundError: If the settings file doesn't exist.
+        """
+        if self._prompts_dir is None:
+            return
+
+        settings_src = self._prompts_dir / f"{action}.json"
+        if not settings_src.exists():
+            raise FileNotFoundError(f"Sandbox settings not found: {settings_src}")
+
+        # Create .claude directory if needed
+        claude_dir = Path(work_dir) / ".claude"
+        claude_dir.mkdir(exist_ok=True)
+
+        # Copy settings to settings.local.json (higher precedence than settings.json)
+        settings_dst = claude_dir / "settings.local.json"
+        shutil.copy(settings_src, settings_dst)
+        logger.debug(f"Installed sandbox settings for '{action}' to {settings_dst}")
 
     def execute(
         self,
         work_dir: str,
         prompt: str,
-        allowed_tools: Optional[str] = None
+        allowed_tools: Optional[str] = None,
+        action: Optional[str] = None
     ) -> ClaudeResult:
         """Execute Claude Code with the given prompt in headless mode.
 
         Args:
             work_dir: Working directory (the cloned repo).
             prompt: The prompt to send to Claude Code.
-            allowed_tools: Comma-separated list of allowed tools.
-                          Defaults to TOOLS_READONLY.
+            allowed_tools: Comma-separated list of allowed tools (legacy).
+                          Ignored if action is specified and prompts_dir is set.
+            action: Action name (e.g., "investigate", "fix", "implement").
+                   If specified and prompts_dir is set, installs the action's settings.
 
         Returns:
             ClaudeResult with content and metadata.
@@ -62,20 +100,30 @@ class ClaudeExecutor:
         Raises:
             ClaudeExecutorError: If execution fails or times out.
         """
-        tools = allowed_tools or self.TOOLS_READONLY
-
-        cmd = [
-            "claude",
-            "-p", prompt,                           # Non-interactive print mode
-            "--permission-mode", "acceptEdits",     # Auto-approve edits
-            "--allowedTools", tools,                # Whitelist tools
-            "--output-format", "json",              # Structured output
-        ]
+        # Install sandbox settings if available
+        if action and self._prompts_dir:
+            self._install_sandbox_settings(work_dir, action)
+            # When using sandbox settings, don't pass --allowedTools
+            # The settings file handles all permissions
+            cmd = [
+                "claude",
+                "-p", prompt,
+                "--output-format", "json",
+            ]
+        else:
+            # Legacy mode: use --allowedTools
+            tools = allowed_tools or self.TOOLS_READONLY
+            cmd = [
+                "claude",
+                "-p", prompt,
+                "--permission-mode", "acceptEdits",
+                "--allowedTools", tools,
+                "--output-format", "json",
+            ]
 
         logger.debug(
-            f"Executing Claude Code CLI: claude -p <prompt> "
-            f"--permission-mode acceptEdits --allowedTools {tools} "
-            f"--output-format json (cwd={work_dir}, timeout={self._timeout}s)"
+            f"Executing Claude Code CLI in {work_dir} "
+            f"(action={action}, timeout={self._timeout}s)"
         )
 
         start_time = time.monotonic()
@@ -136,7 +184,8 @@ class ClaudeExecutor:
         work_dir: str,
         template_path: str,
         context: dict,
-        allowed_tools: Optional[str] = None
+        allowed_tools: Optional[str] = None,
+        action: Optional[str] = None
     ) -> ClaudeResult:
         """Execute Claude Code with a prompt template.
 
@@ -144,7 +193,8 @@ class ClaudeExecutor:
             work_dir: Working directory (the cloned repo).
             template_path: Path to the prompt template file.
             context: Dictionary of variables to substitute in the template.
-            allowed_tools: Comma-separated list of allowed tools.
+            allowed_tools: Comma-separated list of allowed tools (legacy).
+            action: Action name (e.g., "investigate", "fix").
 
         Returns:
             ClaudeResult with content and metadata.
@@ -164,4 +214,4 @@ class ClaudeExecutor:
         }
 
         prompt = template.format(**safe_context)
-        return self.execute(work_dir, prompt, allowed_tools)
+        return self.execute(work_dir, prompt, allowed_tools, action)
