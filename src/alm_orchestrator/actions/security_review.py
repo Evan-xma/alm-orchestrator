@@ -30,9 +30,10 @@ class SecurityReviewAction(BaseAction):
 
         # Fetch comments (sorted newest-first)
         comments = jira_client.get_comments(issue_key)
+        comment_bodies = [c["body"] for c in comments]
 
         # Search description first, then comments
-        pr_number = find_pr_in_texts(description, comments)
+        pr_number = find_pr_in_texts(description, comment_bodies)
 
         if not pr_number:
             header = "SECURITY REVIEW FAILED"

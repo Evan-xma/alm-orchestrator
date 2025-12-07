@@ -134,7 +134,7 @@ class TestSecurityReviewPRInComments:
         self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor
     ):
         """Test that action finds PR in comments when description has none."""
-        mock_jira_client.get_comments.return_value = ["PR #42"]
+        mock_jira_client.get_comments.return_value = [{"body": "PR #42", "author_id": "user-1", "created": "2024-01-01T10:00:00"}]
 
         result = action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
 

@@ -134,7 +134,7 @@ class TestCodeReviewPRInComments:
         self, action, mock_issue, mock_jira_client, mock_github_client, mock_claude_executor
     ):
         """Test that action finds PR in comments when description has none."""
-        mock_jira_client.get_comments.return_value = ["PR #42"]
+        mock_jira_client.get_comments.return_value = [{"body": "PR #42", "author_id": "user-1", "created": "2024-01-01T10:00:00"}]
 
         result = action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
 
@@ -148,7 +148,7 @@ class TestCodeReviewPRInComments:
     ):
         """Test that PR in description is used even when comments have different PR."""
         mock_issue.fields.description = "PR #1"
-        mock_jira_client.get_comments.return_value = ["PR #99"]
+        mock_jira_client.get_comments.return_value = [{"body": "PR #99", "author_id": "user-1", "created": "2024-01-01T10:00:00"}]
 
         result = action.execute(mock_issue, mock_jira_client, mock_github_client, mock_claude_executor)
 
