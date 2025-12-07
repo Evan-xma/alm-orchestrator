@@ -4,28 +4,28 @@
 
 **Goal:** Replace CLI tool flags with OS-level sandbox profiles that restrict Claude Code to the working directory with per-action permissions.
 
-**Architecture:** Create JSON sandbox profile files in `prompts/sandbox/`. Before each Claude invocation, copy the appropriate profile to `.claude/settings.local.json` in the cloned repo. This overrides any repo settings and enables filesystem/network isolation.
+**Architecture:** Create JSON settings files in `prompts/` alongside prompt templates. Each action gets its own settings file following the naming convention `{action_name}.json`. Before each Claude invocation, copy the action's settings file to `.claude/settings.local.json` in the cloned repo.
+
+**Convention:** `prompts/{action}.md` (prompt template) + `prompts/{action}.json` (settings file)
 
 **Tech Stack:** Python 3.13, pytest, Claude Code CLI sandbox features (bubblewrap)
 
 ---
 
-## Task 1: Create Sandbox Profile Files
+## Task 1: Create Settings Files for Each Action
 
 **Files:**
-- Create: `prompts/sandbox/investigate.json`
-- Create: `prompts/sandbox/fix.json`
-- Create: `prompts/sandbox/implement.json`
+- Create: `prompts/investigate.json`
+- Create: `prompts/impact.json`
+- Create: `prompts/recommend.json`
+- Create: `prompts/code_review.json`
+- Create: `prompts/security_review.json`
+- Create: `prompts/fix.json`
+- Create: `prompts/implement.json`
 
-**Step 1: Create the sandbox directory**
+**Step 1: Create investigate.json (read-only, no network)**
 
-```bash
-mkdir -p prompts/sandbox
-```
-
-**Step 2: Create investigate.json (read-only, no network)**
-
-Create `prompts/sandbox/investigate.json`:
+Create `prompts/investigate.json`:
 
 ```json
 {
@@ -69,9 +69,25 @@ Create `prompts/sandbox/investigate.json`:
 }
 ```
 
-**Step 3: Create fix.json (read-write, GitHub only)**
+**Step 2: Create impact.json (same as investigate - read-only analysis)**
 
-Create `prompts/sandbox/fix.json`:
+Create `prompts/impact.json` with identical content to `investigate.json`.
+
+**Step 3: Create recommend.json (same as investigate - read-only analysis)**
+
+Create `prompts/recommend.json` with identical content to `investigate.json`.
+
+**Step 4: Create code_review.json (same as investigate - read-only analysis)**
+
+Create `prompts/code_review.json` with identical content to `investigate.json`.
+
+**Step 5: Create security_review.json (same as investigate - read-only analysis)**
+
+Create `prompts/security_review.json` with identical content to `investigate.json`.
+
+**Step 6: Create fix.json (read-write, no network)**
+
+Create `prompts/fix.json`:
 
 ```json
 {
@@ -124,9 +140,9 @@ Create `prompts/sandbox/fix.json`:
 }
 ```
 
-**Step 4: Create implement.json (read-write, package registries allowed)**
+**Step 7: Create implement.json (read-write, package registries allowed)**
 
-Create `prompts/sandbox/implement.json`:
+Create `prompts/implement.json`:
 
 ```json
 {
@@ -179,31 +195,31 @@ Create `prompts/sandbox/implement.json`:
 }
 ```
 
-**Step 5: Commit**
+**Step 8: Commit**
 
 ```bash
-git add prompts/sandbox/
-git commit -m "feat: add sandbox profile configurations for Claude Code"
+git add prompts/*.json
+git commit -m "feat: add per-action sandbox settings files"
 ```
 
 ---
 
-## Task 2: Add Profile Installation to ClaudeExecutor
+## Task 2: Add Settings Installation to ClaudeExecutor
 
 **Files:**
 - Modify: `src/alm_orchestrator/claude_executor.py`
 - Test: `tests/test_claude_executor.py`
 
-**Step 1: Write the failing test for profile installation**
+**Step 1: Write the failing test for settings installation**
 
 Add to `tests/test_claude_executor.py`:
 
 ```python
-class TestSandboxProfiles:
-    """Tests for sandbox profile installation."""
+class TestSandboxSettings:
+    """Tests for sandbox settings installation."""
 
-    def test_installs_profile_to_settings_local(self, mocker, tmp_path):
-        """Verify profile is copied to .claude/settings.local.json."""
+    def test_installs_settings_to_settings_local(self, mocker, tmp_path):
+        """Verify settings file is copied to .claude/settings.local.json."""
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -211,38 +227,38 @@ class TestSandboxProfiles:
             stderr=""
         )
 
-        # Create a mock profile
-        profiles_dir = tmp_path / "sandbox"
-        profiles_dir.mkdir()
-        profile_file = profiles_dir / "investigate.json"
-        profile_file.write_text('{"sandbox": {"enabled": true}}')
+        # Create mock prompts directory with settings file
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        settings_file = prompts_dir / "investigate.json"
+        settings_file.write_text('{"sandbox": {"enabled": true}}')
 
         # Create work directory
         work_dir = tmp_path / "repo"
         work_dir.mkdir()
 
-        executor = ClaudeExecutor(profiles_dir=str(profiles_dir))
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
         executor.execute(
             work_dir=str(work_dir),
             prompt="Test prompt",
-            profile="investigate"
+            action="investigate"
         )
 
         # Verify settings.local.json was created
-        settings_file = work_dir / ".claude" / "settings.local.json"
-        assert settings_file.exists()
-        assert '"sandbox"' in settings_file.read_text()
+        dest_file = work_dir / ".claude" / "settings.local.json"
+        assert dest_file.exists()
+        assert '"sandbox"' in dest_file.read_text()
 ```
 
 **Step 2: Run test to verify it fails**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxProfiles::test_installs_profile_to_settings_local -v
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxSettings::test_installs_settings_to_settings_local -v
 ```
 
-Expected: FAIL with `TypeError` (profiles_dir not accepted)
+Expected: FAIL with `TypeError` (prompts_dir not accepted)
 
-**Step 3: Add profiles_dir parameter and profile installation**
+**Step 3: Add prompts_dir parameter and settings installation**
 
 Modify `src/alm_orchestrator/claude_executor.py`:
 
@@ -284,60 +300,54 @@ class ClaudeExecutor:
     TOOLS_READONLY = "Bash,Read,Glob,Grep"
     TOOLS_READWRITE = "Bash,Read,Write,Edit,Glob,Grep"
 
-    # Profile name mapping
-    PROFILE_MAP = {
-        "readonly": "investigate",
-        "readwrite": "fix",
-    }
-
     def __init__(
         self,
         timeout_seconds: Optional[int] = None,
-        profiles_dir: Optional[str] = None
+        prompts_dir: Optional[str] = None
     ):
         """Initialize the executor.
 
         Args:
             timeout_seconds: Maximum time to wait for Claude Code to complete.
                            Defaults to 600 seconds (10 minutes).
-            profiles_dir: Path to directory containing sandbox profile JSON files.
-                         If None, sandbox profiles are not used.
+            prompts_dir: Path to prompts directory containing {action}.json settings files.
+                        If None, sandbox settings are not used.
         """
         self._timeout = timeout_seconds or self.DEFAULT_TIMEOUT_SECONDS
-        self._profiles_dir = Path(profiles_dir) if profiles_dir else None
+        self._prompts_dir = Path(prompts_dir) if prompts_dir else None
 
-    def _install_sandbox_profile(self, work_dir: str, profile: str) -> None:
-        """Install a sandbox profile to the working directory.
+    def _install_sandbox_settings(self, work_dir: str, action: str) -> None:
+        """Install sandbox settings for an action to the working directory.
 
         Args:
             work_dir: The working directory (cloned repo).
-            profile: Name of the profile (without .json extension).
+            action: Name of the action (matches {action}.json file).
 
         Raises:
-            FileNotFoundError: If the profile doesn't exist.
+            FileNotFoundError: If the settings file doesn't exist.
         """
-        if self._profiles_dir is None:
+        if self._prompts_dir is None:
             return
 
-        profile_src = self._profiles_dir / f"{profile}.json"
-        if not profile_src.exists():
-            raise FileNotFoundError(f"Sandbox profile not found: {profile_src}")
+        settings_src = self._prompts_dir / f"{action}.json"
+        if not settings_src.exists():
+            raise FileNotFoundError(f"Sandbox settings not found: {settings_src}")
 
         # Create .claude directory if needed
         claude_dir = Path(work_dir) / ".claude"
         claude_dir.mkdir(exist_ok=True)
 
-        # Copy profile to settings.local.json (higher precedence than settings.json)
-        profile_dst = claude_dir / "settings.local.json"
-        shutil.copy(profile_src, profile_dst)
-        logger.debug(f"Installed sandbox profile '{profile}' to {profile_dst}")
+        # Copy settings to settings.local.json (higher precedence than settings.json)
+        settings_dst = claude_dir / "settings.local.json"
+        shutil.copy(settings_src, settings_dst)
+        logger.debug(f"Installed sandbox settings for '{action}' to {settings_dst}")
 
     def execute(
         self,
         work_dir: str,
         prompt: str,
         allowed_tools: Optional[str] = None,
-        profile: Optional[str] = None
+        action: Optional[str] = None
     ) -> ClaudeResult:
         """Execute Claude Code with the given prompt in headless mode.
 
@@ -345,9 +355,9 @@ class ClaudeExecutor:
             work_dir: Working directory (the cloned repo).
             prompt: The prompt to send to Claude Code.
             allowed_tools: Comma-separated list of allowed tools (legacy).
-                          Ignored if profile is specified and profiles_dir is set.
-            profile: Sandbox profile name (e.g., "investigate", "fix", "implement").
-                    If specified and profiles_dir is set, installs the profile.
+                          Ignored if action is specified and prompts_dir is set.
+            action: Action name (e.g., "investigate", "fix", "implement").
+                   If specified and prompts_dir is set, installs the action's settings.
 
         Returns:
             ClaudeResult with content and metadata.
@@ -355,11 +365,11 @@ class ClaudeExecutor:
         Raises:
             ClaudeExecutorError: If execution fails or times out.
         """
-        # Install sandbox profile if available
-        if profile and self._profiles_dir:
-            self._install_sandbox_profile(work_dir, profile)
-            # When using sandbox profiles, don't pass --allowedTools
-            # The profile handles all permissions
+        # Install sandbox settings if available
+        if action and self._prompts_dir:
+            self._install_sandbox_settings(work_dir, action)
+            # When using sandbox settings, don't pass --allowedTools
+            # The settings file handles all permissions
             cmd = [
                 "claude",
                 "-p", prompt,
@@ -378,7 +388,7 @@ class ClaudeExecutor:
 
         logger.debug(
             f"Executing Claude Code CLI in {work_dir} "
-            f"(profile={profile}, timeout={self._timeout}s)"
+            f"(action={action}, timeout={self._timeout}s)"
         )
 
         start_time = time.monotonic()
@@ -440,7 +450,7 @@ class ClaudeExecutor:
         template_path: str,
         context: dict,
         allowed_tools: Optional[str] = None,
-        profile: Optional[str] = None
+        action: Optional[str] = None
     ) -> ClaudeResult:
         """Execute Claude Code with a prompt template.
 
@@ -449,7 +459,7 @@ class ClaudeExecutor:
             template_path: Path to the prompt template file.
             context: Dictionary of variables to substitute in the template.
             allowed_tools: Comma-separated list of allowed tools (legacy).
-            profile: Sandbox profile name (e.g., "investigate", "fix").
+            action: Action name (e.g., "investigate", "fix").
 
         Returns:
             ClaudeResult with content and metadata.
@@ -469,13 +479,13 @@ class ClaudeExecutor:
         }
 
         prompt = template.format(**safe_context)
-        return self.execute(work_dir, prompt, allowed_tools, profile)
+        return self.execute(work_dir, prompt, allowed_tools, action)
 ```
 
 **Step 4: Run test to verify it passes**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxProfiles::test_installs_profile_to_settings_local -v
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxSettings::test_installs_settings_to_settings_local -v
 ```
 
 Expected: PASS
@@ -484,7 +494,7 @@ Expected: PASS
 
 ```bash
 git add src/alm_orchestrator/claude_executor.py tests/test_claude_executor.py
-git commit -m "feat: add sandbox profile installation to ClaudeExecutor"
+git commit -m "feat: add sandbox settings installation to ClaudeExecutor"
 ```
 
 ---
@@ -494,43 +504,43 @@ git commit -m "feat: add sandbox profile installation to ClaudeExecutor"
 **Files:**
 - Modify: `tests/test_claude_executor.py`
 
-**Step 1: Write test for missing profile**
+**Step 1: Write test for missing settings file**
 
-Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
+Add to `tests/test_claude_executor.py` in `TestSandboxSettings`:
 
 ```python
-    def test_raises_on_missing_profile(self, mocker, tmp_path):
-        """Verify FileNotFoundError when profile doesn't exist."""
-        profiles_dir = tmp_path / "sandbox"
-        profiles_dir.mkdir()
+    def test_raises_on_missing_settings(self, mocker, tmp_path):
+        """Verify FileNotFoundError when settings file doesn't exist."""
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
         work_dir = tmp_path / "repo"
         work_dir.mkdir()
 
-        executor = ClaudeExecutor(profiles_dir=str(profiles_dir))
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
 
         with pytest.raises(FileNotFoundError, match="nonexistent"):
             executor.execute(
                 work_dir=str(work_dir),
                 prompt="Test",
-                profile="nonexistent"
+                action="nonexistent"
             )
 ```
 
 **Step 2: Run test to verify it passes**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxProfiles::test_raises_on_missing_profile -v
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxSettings::test_raises_on_missing_settings -v
 ```
 
 Expected: PASS
 
-**Step 3: Write test for legacy mode (no profiles_dir)**
+**Step 3: Write test for legacy mode (no prompts_dir)**
 
-Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
+Add to `tests/test_claude_executor.py` in `TestSandboxSettings`:
 
 ```python
-    def test_legacy_mode_without_profiles_dir(self, mocker, tmp_path):
-        """Verify legacy --allowedTools mode when profiles_dir is None."""
+    def test_legacy_mode_without_prompts_dir(self, mocker, tmp_path):
+        """Verify legacy --allowedTools mode when prompts_dir is None."""
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -541,7 +551,7 @@ Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
         work_dir = tmp_path / "repo"
         work_dir.mkdir()
 
-        # No profiles_dir = legacy mode
+        # No prompts_dir = legacy mode
         executor = ClaudeExecutor()
         executor.execute(
             work_dir=str(work_dir),
@@ -561,18 +571,18 @@ Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
 **Step 4: Run test to verify it passes**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxProfiles::test_legacy_mode_without_profiles_dir -v
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxSettings::test_legacy_mode_without_prompts_dir -v
 ```
 
 Expected: PASS
 
-**Step 5: Write test for profile mode skipping --allowedTools**
+**Step 5: Write test for action mode skipping --allowedTools**
 
-Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
+Add to `tests/test_claude_executor.py` in `TestSandboxSettings`:
 
 ```python
-    def test_profile_mode_skips_allowed_tools_flag(self, mocker, tmp_path):
-        """Verify --allowedTools is NOT passed when using sandbox profile."""
+    def test_action_mode_skips_allowed_tools_flag(self, mocker, tmp_path):
+        """Verify --allowedTools is NOT passed when using action settings."""
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(
             returncode=0,
@@ -580,18 +590,18 @@ Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
             stderr=""
         )
 
-        profiles_dir = tmp_path / "sandbox"
-        profiles_dir.mkdir()
-        (profiles_dir / "investigate.json").write_text('{"sandbox": {"enabled": true}}')
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        (prompts_dir / "investigate.json").write_text('{"sandbox": {"enabled": true}}')
 
         work_dir = tmp_path / "repo"
         work_dir.mkdir()
 
-        executor = ClaudeExecutor(profiles_dir=str(profiles_dir))
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
         executor.execute(
             work_dir=str(work_dir),
             prompt="Test",
-            profile="investigate"
+            action="investigate"
         )
 
         cmd = mock_run.call_args[0][0]
@@ -602,7 +612,7 @@ Add to `tests/test_claude_executor.py` in `TestSandboxProfiles`:
 **Step 6: Run test to verify it passes**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxProfiles::test_profile_mode_skips_allowed_tools_flag -v
+source .venv/bin/activate && pytest tests/test_claude_executor.py::TestSandboxSettings::test_action_mode_skips_allowed_tools_flag -v
 ```
 
 Expected: PASS
@@ -611,12 +621,12 @@ Expected: PASS
 
 ```bash
 git add tests/test_claude_executor.py
-git commit -m "test: add sandbox profile edge case tests"
+git commit -m "test: add sandbox settings edge case tests"
 ```
 
 ---
 
-## Task 4: Update Daemon to Pass profiles_dir
+## Task 4: Update Daemon to Pass prompts_dir
 
 **Files:**
 - Modify: `src/alm_orchestrator/daemon.py`
@@ -626,13 +636,13 @@ git commit -m "test: add sandbox profile edge case tests"
 
 Read `src/alm_orchestrator/daemon.py` to find where `ClaudeExecutor` is instantiated.
 
-**Step 2: Write failing test for daemon using profiles_dir**
+**Step 2: Write failing test for daemon using prompts_dir**
 
 Add to `tests/test_daemon.py`:
 
 ```python
-def test_daemon_initializes_executor_with_profiles_dir(self, mocker):
-    """Verify daemon passes profiles_dir to ClaudeExecutor."""
+def test_daemon_initializes_executor_with_prompts_dir(self, mocker):
+    """Verify daemon passes prompts_dir to ClaudeExecutor."""
     mocker.patch.dict(os.environ, {
         "JIRA_URL": "https://test.atlassian.net",
         "JIRA_PROJECT_KEY": "TEST",
@@ -650,22 +660,22 @@ def test_daemon_initializes_executor_with_profiles_dir(self, mocker):
     config = Config.from_env()
     daemon = Daemon(config)
 
-    # Verify ClaudeExecutor was called with profiles_dir
+    # Verify ClaudeExecutor was called with prompts_dir
     mock_executor_class.assert_called_once()
     call_kwargs = mock_executor_class.call_args[1]
-    assert "profiles_dir" in call_kwargs
-    assert "sandbox" in call_kwargs["profiles_dir"]
+    assert "prompts_dir" in call_kwargs
+    assert "prompts" in call_kwargs["prompts_dir"]
 ```
 
 **Step 3: Run test to verify it fails**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_daemon.py::test_daemon_initializes_executor_with_profiles_dir -v
+source .venv/bin/activate && pytest tests/test_daemon.py::test_daemon_initializes_executor_with_prompts_dir -v
 ```
 
-Expected: FAIL (profiles_dir not passed)
+Expected: FAIL (prompts_dir not passed)
 
-**Step 4: Modify daemon.py to pass profiles_dir**
+**Step 4: Modify daemon.py to pass prompts_dir**
 
 Find the line that creates `ClaudeExecutor()` and update it:
 
@@ -676,14 +686,14 @@ from pathlib import Path
 # In __init__ or wherever ClaudeExecutor is created:
 prompts_dir = Path(__file__).parent.parent.parent / "prompts"
 self._executor = ClaudeExecutor(
-    profiles_dir=str(prompts_dir / "sandbox")
+    prompts_dir=str(prompts_dir)
 )
 ```
 
 **Step 5: Run test to verify it passes**
 
 ```bash
-source .venv/bin/activate && pytest tests/test_daemon.py::test_daemon_initializes_executor_with_profiles_dir -v
+source .venv/bin/activate && pytest tests/test_daemon.py::test_daemon_initializes_executor_with_prompts_dir -v
 ```
 
 Expected: PASS
@@ -692,12 +702,12 @@ Expected: PASS
 
 ```bash
 git add src/alm_orchestrator/daemon.py tests/test_daemon.py
-git commit -m "feat: configure daemon to use sandbox profiles"
+git commit -m "feat: configure daemon to use prompts_dir for sandbox settings"
 ```
 
 ---
 
-## Task 5: Update Actions to Use Profiles
+## Task 5: Update Actions to Use Action Parameter
 
 **Files:**
 - Modify: `src/alm_orchestrator/actions/investigate.py`
@@ -717,40 +727,36 @@ allowed_tools=ClaudeExecutor.TOOLS_READONLY,
 
 To:
 ```python
-profile="investigate",
+action="investigate",
 ```
 
 Also remove the `ClaudeExecutor` import if no longer needed for `TOOLS_READONLY`.
 
-**Step 2: Update impact.py, recommend.py, code_review.py, security_review.py**
+**Step 2: Update impact.py**
 
-Same change as investigate.py - replace `allowed_tools=ClaudeExecutor.TOOLS_READONLY` with `profile="investigate"`.
+Change `allowed_tools=ClaudeExecutor.TOOLS_READONLY` to `action="impact"`.
 
-**Step 3: Update fix.py**
+**Step 3: Update recommend.py**
 
-Change:
-```python
-allowed_tools=ClaudeExecutor.TOOLS_READWRITE,
-```
+Change `allowed_tools=ClaudeExecutor.TOOLS_READONLY` to `action="recommend"`.
 
-To:
-```python
-profile="fix",
-```
+**Step 4: Update code_review.py**
 
-**Step 4: Update implement.py**
+Change `allowed_tools=ClaudeExecutor.TOOLS_READONLY` to `action="code_review"`.
 
-Change:
-```python
-allowed_tools=ClaudeExecutor.TOOLS_READWRITE,
-```
+**Step 5: Update security_review.py**
 
-To:
-```python
-profile="implement",
-```
+Change `allowed_tools=ClaudeExecutor.TOOLS_READONLY` to `action="security_review"`.
 
-**Step 5: Run all action tests**
+**Step 6: Update fix.py**
+
+Change `allowed_tools=ClaudeExecutor.TOOLS_READWRITE` to `action="fix"`.
+
+**Step 7: Update implement.py**
+
+Change `allowed_tools=ClaudeExecutor.TOOLS_READWRITE` to `action="implement"`.
+
+**Step 8: Run all action tests**
 
 ```bash
 source .venv/bin/activate && pytest tests/test_actions/ -v
@@ -758,29 +764,30 @@ source .venv/bin/activate && pytest tests/test_actions/ -v
 
 Expected: PASS (tests mock execute_with_template, so they don't care about the parameter name change)
 
-**Step 6: Commit**
+**Step 9: Commit**
 
 ```bash
 git add src/alm_orchestrator/actions/
-git commit -m "refactor: switch actions from allowed_tools to sandbox profiles"
+git commit -m "refactor: switch actions from allowed_tools to action parameter"
 ```
 
 ---
 
-## Task 6: Update Action Tests to Verify Profile Usage
+## Task 6: Update Action Tests to Verify Action Parameter
 
 **Files:**
 - Modify: `tests/test_actions/test_investigate.py`
 - Modify: `tests/test_actions/test_fix.py`
+- Modify: `tests/test_actions/test_implement.py`
 
-**Step 1: Update test_investigate.py to verify profile parameter**
+**Step 1: Update test_investigate.py to verify action parameter**
 
 In `test_execute_flow`, add assertion:
 
 ```python
-# Verify profile was passed instead of allowed_tools
+# Verify action was passed instead of allowed_tools
 call_kwargs = mock_claude.execute_with_template.call_args[1]
-assert call_kwargs.get("profile") == "investigate"
+assert call_kwargs.get("action") == "investigate"
 assert "allowed_tools" not in call_kwargs or call_kwargs.get("allowed_tools") is None
 ```
 
@@ -794,9 +801,13 @@ Expected: PASS
 
 **Step 3: Update test_fix.py similarly**
 
-Add assertion for `profile="fix"`.
+Add assertion for `action="fix"`.
 
-**Step 4: Run all tests**
+**Step 4: Update test_implement.py similarly**
+
+Add assertion for `action="implement"`.
+
+**Step 5: Run all tests**
 
 ```bash
 source .venv/bin/activate && pytest tests/ -v
@@ -804,11 +815,11 @@ source .venv/bin/activate && pytest tests/ -v
 
 Expected: All PASS
 
-**Step 5: Commit**
+**Step 6: Commit**
 
 ```bash
 git add tests/test_actions/
-git commit -m "test: verify actions use correct sandbox profiles"
+git commit -m "test: verify actions use correct action parameter"
 ```
 
 ---
@@ -817,29 +828,39 @@ git commit -m "test: verify actions use correct sandbox profiles"
 
 **Files:**
 - Modify: `docs/sandbox-profiles-design.md`
-- Modify: `CLAUDE.md` (if needed)
+- Modify: `CLAUDE.md`
 
 **Step 1: Update design doc status**
 
 Change status from "Draft" to "Implemented".
 
-**Step 2: Add profile location to CLAUDE.md architecture section**
+**Step 2: Add settings file convention to CLAUDE.md architecture section**
 
 Add under Architecture:
-```markdown
-### Sandbox Profiles
 
-Sandbox profiles in `prompts/sandbox/` control Claude Code permissions:
-- `investigate.json` — Read-only, no network (analysis actions)
-- `fix.json` — Read-write, no network (bug fixes)
-- `implement.json` — Read-write, package registries allowed (new features)
+```markdown
+### Sandbox Settings
+
+Each action has a corresponding sandbox settings file in `prompts/`:
+
+| Action | Settings File | Permissions |
+|--------|---------------|-------------|
+| `investigate` | `prompts/investigate.json` | Read-only, no network |
+| `impact` | `prompts/impact.json` | Read-only, no network |
+| `recommend` | `prompts/recommend.json` | Read-only, no network |
+| `code_review` | `prompts/code_review.json` | Read-only, no network |
+| `security_review` | `prompts/security_review.json` | Read-only, no network |
+| `fix` | `prompts/fix.json` | Read-write, no network |
+| `implement` | `prompts/implement.json` | Read-write, WebFetch allowed |
+
+Convention: `prompts/{action}.md` (prompt) + `prompts/{action}.json` (settings)
 ```
 
 **Step 3: Commit**
 
 ```bash
 git add docs/ CLAUDE.md
-git commit -m "docs: update sandbox profiles documentation"
+git commit -m "docs: update sandbox settings documentation"
 ```
 
 ---
@@ -854,10 +875,10 @@ source .venv/bin/activate && pytest tests/ -v
 
 Expected: All PASS
 
-**Step 2: Verify profile files are valid JSON**
+**Step 2: Verify settings files are valid JSON**
 
 ```bash
-python -c "import json; [json.load(open(f)) for f in ['prompts/sandbox/investigate.json', 'prompts/sandbox/fix.json', 'prompts/sandbox/implement.json']]"
+python -c "import json; [json.load(open(f'prompts/{a}.json')) for a in ['investigate', 'impact', 'recommend', 'code_review', 'security_review', 'fix', 'implement']]"
 ```
 
 Expected: No errors
@@ -869,7 +890,7 @@ Expected: No errors
 cd /tmp
 git clone https://github.com/some/test-repo test-repo
 mkdir -p test-repo/.claude
-cp /path/to/prompts/sandbox/investigate.json test-repo/.claude/settings.local.json
+cp /path/to/prompts/investigate.json test-repo/.claude/settings.local.json
 cd test-repo
 claude -p "Run: curl --version" --output-format json
 # Should show permission_denials for curl
@@ -881,13 +902,19 @@ claude -p "Run: curl --version" --output-format json
 
 | Task | Description | Files |
 |------|-------------|-------|
-| 1 | Create sandbox profile JSONs | `prompts/sandbox/*.json` |
-| 2 | Add profile installation to executor | `claude_executor.py` |
+| 1 | Create per-action settings JSONs | `prompts/*.json` (7 files) |
+| 2 | Add settings installation to executor | `claude_executor.py` |
 | 3 | Add executor edge case tests | `test_claude_executor.py` |
-| 4 | Update daemon to pass profiles_dir | `daemon.py` |
-| 5 | Switch actions to use profiles | `actions/*.py` |
+| 4 | Update daemon to pass prompts_dir | `daemon.py` |
+| 5 | Switch actions to use action parameter | `actions/*.py` (7 files) |
 | 6 | Update action tests | `test_actions/*.py` |
 | 7 | Update documentation | `docs/`, `CLAUDE.md` |
 | 8 | Final verification | N/A |
 
 **Total commits:** 8
+
+**Key changes from original plan:**
+- Settings files stored in `prompts/` (not `prompts/sandbox/`)
+- One settings file per action (7 files instead of 3)
+- Convention: `{action}.json` matches `{action}.md`
+- Parameter renamed from `profile` to `action` for clarity
