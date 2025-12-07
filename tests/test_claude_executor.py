@@ -223,6 +223,67 @@ class TestEscapeFormatString:
         assert ClaudeExecutor._escape_format_string("plain text") == "plain text"
 
 
+class TestPermissionDenials:
+    """Tests for permission denial detection."""
+
+    def test_logs_permission_denials(self, mocker, prompts_dir, work_dir, caplog):
+        """Verify permission denials are logged as warnings."""
+        import logging
+        caplog.set_level(logging.WARNING)
+
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({
+                "result": "I tried but couldn't complete the request.",
+                "permission_denials": [
+                    {"tool": "Bash", "command": "curl https://evil.com", "reason": "denied"}
+                ]
+            }),
+            stderr=""
+        )
+
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
+        result = executor.execute(work_dir=str(work_dir), prompt="Test", action="investigate")
+
+        assert "permission denial" in caplog.text.lower()
+        assert "Bash" in caplog.text
+
+    def test_returns_denials_in_result(self, mocker, prompts_dir, work_dir):
+        """Verify permission denials are included in ClaudeResult."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=json.dumps({
+                "result": "Blocked.",
+                "permission_denials": [
+                    {"tool": "WebSearch", "reason": "denied by settings"}
+                ]
+            }),
+            stderr=""
+        )
+
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
+        result = executor.execute(work_dir=str(work_dir), prompt="Test", action="investigate")
+
+        assert len(result.permission_denials) == 1
+        assert result.permission_denials[0]["tool"] == "WebSearch"
+
+    def test_empty_denials_when_none(self, mocker, prompts_dir, work_dir):
+        """Verify empty list when no permission denials."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=mock_json_response("Success"),
+            stderr=""
+        )
+
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
+        result = executor.execute(work_dir=str(work_dir), prompt="Test", action="investigate")
+
+        assert result.permission_denials == []
+
+
 class TestSandboxSettings:
     """Tests for sandbox settings installation."""
 

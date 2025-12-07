@@ -5,7 +5,7 @@ import logging
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +24,7 @@ class ClaudeResult:
     cost_usd: float
     duration_ms: int
     session_id: str
+    permission_denials: list = field(default_factory=list)
 
 
 class ClaudeExecutor:
@@ -125,11 +126,23 @@ class ClaudeExecutor:
         # Parse JSON output
         try:
             data = json.loads(result.stdout)
+
+            # Check for permission denials (potential prompt injection or missing permissions)
+            denials = data.get("permission_denials", [])
+            if denials:
+                denied_tools = [d.get("tool", "unknown") for d in denials]
+                logger.warning(
+                    f"Permission denials detected: {denied_tools}. "
+                    f"This may indicate prompt injection or insufficient permissions. "
+                    f"Details: {denials}"
+                )
+
             return ClaudeResult(
                 content=data.get("result", ""),
                 cost_usd=data.get("cost_usd", 0.0),
                 duration_ms=data.get("duration_ms", 0),
                 session_id=data.get("session_id", ""),
+                permission_denials=denials,
             )
         except json.JSONDecodeError:
             # Fall back to raw output if JSON parsing fails
@@ -138,6 +151,7 @@ class ClaudeExecutor:
                 cost_usd=0.0,
                 duration_ms=0,
                 session_id="",
+                permission_denials=[],
             )
 
     @staticmethod
