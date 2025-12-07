@@ -6,6 +6,7 @@
   },
   "permissions": {
     "allow": [
+      "Skill(*)",
       "Read(**)",
       "Glob(**)",
       "Grep(**)",
@@ -35,5 +36,8 @@
       "Read(**/.env)",
       "Read(**/.env.*)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true
   }
 }

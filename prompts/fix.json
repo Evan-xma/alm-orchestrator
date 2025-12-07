@@ -6,6 +6,7 @@
   },
   "permissions": {
     "allow": [
+      "Skill(*)",
       "Read(**)",
       "Write(**)",
       "Edit(**)",
@@ -58,5 +59,8 @@
       "Read(**/.env)",
       "Read(**/.env.*)"
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true
   }
 }
