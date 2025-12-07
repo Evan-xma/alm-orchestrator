@@ -14,7 +14,22 @@ from alm_orchestrator.config import Config, ConfigError
 from alm_orchestrator.daemon import Daemon
 
 
-def setup_logging(verbose: bool = False, logs_dir: str = "logs") -> None:
+# Default paths and settings
+DEFAULT_ENV_FILE = ".env"
+DEFAULT_LOGS_DIR = "logs"
+DEFAULT_PROMPTS_DIR = "prompts"
+
+# Logging formats
+LOG_FORMAT_CONSOLE = "%(asctime)s,%(levelname)s,%(name)s,%(message)s"
+LOG_FORMAT_FILE = "%(asctime)s,%(levelname)s,%(name)s,%(message)s"
+LOG_DATEFMT_CONSOLE = "%H:%M:%S"
+LOG_DATEFMT_FILE = "%Y-%m-%d %H:%M:%S"
+LOG_FILE_PREFIX = "run-"
+LOG_FILE_EXTENSION = ".csv"
+LOG_TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
+
+
+def setup_logging(verbose: bool = False, logs_dir: str = DEFAULT_LOGS_DIR) -> None:
     """Configure dual logging: console + CSV file.
 
     Args:
@@ -25,8 +40,8 @@ def setup_logging(verbose: bool = False, logs_dir: str = "logs") -> None:
     Path(logs_dir).mkdir(parents=True, exist_ok=True)
 
     # Generate log filename with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    log_file = Path(logs_dir) / f"run-{timestamp}.csv"
+    timestamp = datetime.now().strftime(LOG_TIMESTAMP_FORMAT)
+    log_file = Path(logs_dir) / f"{LOG_FILE_PREFIX}{timestamp}{LOG_FILE_EXTENSION}"
 
     # Root logger configuration
     root_logger = logging.getLogger()
@@ -36,8 +51,8 @@ def setup_logging(verbose: bool = False, logs_dir: str = "logs") -> None:
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
     console_handler.setFormatter(logging.Formatter(
-        "%(asctime)s,%(levelname)s,%(name)s,%(message)s",
-        datefmt="%H:%M:%S"
+        LOG_FORMAT_CONSOLE,
+        datefmt=LOG_DATEFMT_CONSOLE
     ))
     root_logger.addHandler(console_handler)
 
@@ -45,8 +60,8 @@ def setup_logging(verbose: bool = False, logs_dir: str = "logs") -> None:
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(
-        "%(asctime)s,%(levelname)s,%(name)s,%(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        LOG_FORMAT_FILE,
+        datefmt=LOG_DATEFMT_FILE
     ))
     root_logger.addHandler(file_handler)
 
@@ -57,12 +72,12 @@ def get_prompts_dir() -> str:
     """Get path to prompts directory."""
     # Look relative to this file
     this_dir = Path(__file__).parent
-    prompts_dir = this_dir / "prompts"
+    prompts_dir = this_dir / DEFAULT_PROMPTS_DIR
     if prompts_dir.exists():
         return str(prompts_dir)
 
     # Fall back to current directory
-    return str(Path.cwd() / "prompts")
+    return str(Path.cwd() / DEFAULT_PROMPTS_DIR)
 
 
 def main() -> int:
@@ -88,14 +103,14 @@ def main() -> int:
     parser.add_argument(
         "--env-file",
         type=str,
-        default=".env",
-        help="Path to .env file (default: .env)",
+        default=DEFAULT_ENV_FILE,
+        help=f"Path to .env file (default: {DEFAULT_ENV_FILE})",
     )
     parser.add_argument(
         "--logs-dir",
         type=str,
-        default="logs",
-        help="Directory for log files (default: logs)",
+        default=DEFAULT_LOGS_DIR,
+        help=f"Directory for log files (default: {DEFAULT_LOGS_DIR})",
     )
 
     args = parser.parse_args()

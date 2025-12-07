@@ -35,10 +35,11 @@ class SecurityReviewAction(BaseAction):
         pr_number = find_pr_in_texts(description, comments)
 
         if not pr_number:
+            header = "SECURITY REVIEW FAILED"
             jira_client.add_comment(
                 issue_key,
-                "SECURITY REVIEW FAILED\n"
-                "======================\n\n"
+                f"{header}\n"
+                f"{'=' * len(header)}\n\n"
                 "Could not find PR number in issue description or comments. "
                 "Please include the PR URL or number."
             )
@@ -57,13 +58,15 @@ class SecurityReviewAction(BaseAction):
                 action="security_review",
             )
 
-            comment = f"SECURITY REVIEW\n{'=' * 15}\n\n{result.content}"
+            header = "SECURITY REVIEW"
+            comment = f"{header}\n{'=' * len(header)}\n\n{result.content}"
             github_client.add_pr_comment(pr_number, comment)
 
+            complete_header = "SECURITY REVIEW COMPLETE"
             jira_client.add_comment(
                 issue_key,
-                f"SECURITY REVIEW COMPLETE\n"
-                f"========================\n\n"
+                f"{complete_header}\n"
+                f"{'=' * len(complete_header)}\n\n"
                 f"Review posted to PR #{pr_number}"
             )
             jira_client.remove_label(issue_key, self.label)

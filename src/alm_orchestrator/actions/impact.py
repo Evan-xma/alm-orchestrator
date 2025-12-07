@@ -42,7 +42,8 @@ class ImpactAction(BaseAction):
                 action="impact",
             )
 
-            comment = f"IMPACT ANALYSIS\n{'=' * 15}\n\n{result.content}"
+            header = "IMPACT ANALYSIS"
+            comment = f"{header}\n{'=' * len(header)}\n\n{result.content}"
             jira_client.add_comment(issue_key, comment)
             jira_client.remove_label(issue_key, self.label)
 

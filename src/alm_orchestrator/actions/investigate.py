@@ -45,7 +45,8 @@ class InvestigateAction(BaseAction):
             )
 
             # Post findings as Jira comment
-            comment = f"INVESTIGATION RESULTS\n{'=' * 21}\n\n{result.content}"
+            header = "INVESTIGATION RESULTS"
+            comment = f"{header}\n{'=' * len(header)}\n\n{result.content}"
             jira_client.add_comment(issue_key, comment)
 
             # Remove the label to mark as processed

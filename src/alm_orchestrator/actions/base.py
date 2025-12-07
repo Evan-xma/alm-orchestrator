@@ -5,6 +5,11 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 
+# Action label and template conventions
+AI_LABEL_PREFIX = "ai-"
+TEMPLATE_EXTENSION = ".md"
+
+
 class BaseAction(ABC):
     """Abstract base class for all AI actions.
 
@@ -54,5 +59,5 @@ class BaseAction(ABC):
         Returns:
             Absolute path to the template file.
         """
-        template_name = self.label.replace("ai-", "") + ".md"
+        template_name = self.label.replace(AI_LABEL_PREFIX, "") + TEMPLATE_EXTENSION
         return os.path.join(self._prompts_dir, template_name)

@@ -8,6 +8,15 @@ from jira import JIRA, Issue
 from alm_orchestrator.config import Config
 
 
+# OAuth constants
+OAUTH_GRANT_TYPE = "client_credentials"
+OAUTH_CONTENT_TYPE = "application/x-www-form-urlencoded"
+DEFAULT_TOKEN_EXPIRY_SECONDS = 3600  # 1 hour
+
+# API URL pattern for Atlassian service accounts
+ATLASSIAN_API_URL_PATTERN = "https://api.atlassian.com/ex/jira/{cloud_id}"
+
+
 class OAuthTokenManager:
     """Manages OAuth 2.0 access tokens for Atlassian service accounts."""
 
@@ -50,7 +59,7 @@ class OAuthTokenManager:
         Service accounts must use api.atlassian.com with the cloudId.
         """
         cloud_id = self.get_cloud_id()
-        return f"https://api.atlassian.com/ex/jira/{cloud_id}"
+        return ATLASSIAN_API_URL_PATTERN.format(cloud_id=cloud_id)
 
     def _needs_refresh(self) -> bool:
         """Check if token needs to be refreshed."""
@@ -63,18 +72,17 @@ class OAuthTokenManager:
         response = requests.post(
             self._token_url,
             data={
-                "grant_type": "client_credentials",
+                "grant_type": OAUTH_GRANT_TYPE,
                 "client_id": self._client_id,
                 "client_secret": self._client_secret,
             },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers={"Content-Type": OAUTH_CONTENT_TYPE},
         )
         response.raise_for_status()
 
         data = response.json()
         self._access_token = data["access_token"]
-        # Token typically valid for 3600 seconds (1 hour)
-        expires_in = data.get("expires_in", 3600)
+        expires_in = data.get("expires_in", DEFAULT_TOKEN_EXPIRY_SECONDS)
         self._expires_at = time.time() + expires_in
         # Reset cloud_id so it gets re-fetched with new token if needed
         self._cloud_id = None

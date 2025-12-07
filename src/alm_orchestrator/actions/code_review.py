@@ -35,10 +35,11 @@ class CodeReviewAction(BaseAction):
         pr_number = find_pr_in_texts(description, comments)
 
         if not pr_number:
+            header = "CODE REVIEW FAILED"
             jira_client.add_comment(
                 issue_key,
-                "CODE REVIEW FAILED\n"
-                "==================\n\n"
+                f"{header}\n"
+                f"{'=' * len(header)}\n\n"
                 "Could not find PR number in issue description or comments. "
                 "Please include the PR URL or number."
             )
@@ -58,14 +59,16 @@ class CodeReviewAction(BaseAction):
             )
 
             # Post review as PR comment
-            comment = f"CODE REVIEW\n{'=' * 11}\n\n{result.content}"
+            header = "CODE REVIEW"
+            comment = f"{header}\n{'=' * len(header)}\n\n{result.content}"
             github_client.add_pr_comment(pr_number, comment)
 
             # Notify in Jira
+            complete_header = "CODE REVIEW COMPLETE"
             jira_client.add_comment(
                 issue_key,
-                f"CODE REVIEW COMPLETE\n"
-                f"====================\n\n"
+                f"{complete_header}\n"
+                f"{'=' * len(complete_header)}\n\n"
                 f"Review posted to PR #{pr_number}"
             )
             jira_client.remove_label(issue_key, self.label)

@@ -42,7 +42,8 @@ class RecommendAction(BaseAction):
                 action="recommend",
             )
 
-            comment = f"RECOMMENDATIONS\n{'=' * 15}\n\n{result.content}"
+            header = "RECOMMENDATIONS"
+            comment = f"{header}\n{'=' * len(header)}\n\n{result.content}"
             jira_client.add_comment(issue_key, comment)
             jira_client.remove_label(issue_key, self.label)
 

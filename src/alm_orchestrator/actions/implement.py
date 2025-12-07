@@ -4,6 +4,11 @@ import os
 from alm_orchestrator.actions.base import BaseAction
 
 
+# Branch and commit conventions for features
+BRANCH_PREFIX_FEATURE = "feature-"
+COMMIT_PREFIX_FEAT = "feat: "
+
+
 class ImplementAction(BaseAction):
     """Handles ai-implement label - implements feature and creates PR."""
 
@@ -28,7 +33,7 @@ class ImplementAction(BaseAction):
         description = issue.fields.description or ""
 
         work_dir = github_client.clone_repo()
-        branch_name = f"ai/feature-{issue_key.lower()}"
+        branch_name = f"{BRANCH_PREFIX_FEATURE}{issue_key.lower()}"
 
         try:
             github_client.create_branch(work_dir, branch_name)
@@ -46,27 +51,26 @@ class ImplementAction(BaseAction):
                 action="implement",
             )
 
-            commit_message = f"feat: {summary}\n\nJira: {issue_key}"
+            commit_message = f"{COMMIT_PREFIX_FEAT}{summary}\n\nJira: {issue_key}"
             github_client.commit_and_push(work_dir, branch_name, commit_message)
 
             pr = github_client.create_pull_request(
                 branch=branch_name,
-                title=f"feat: {summary} [{issue_key}]",
+                title=f"{COMMIT_PREFIX_FEAT}{summary} [{issue_key}]",
                 body=(
                     f"## Summary\n\n"
                     f"Implements {issue_key}: {summary}\n\n"
                     f"## Description\n\n"
                     f"{description}\n\n"
                     f"## AI Implementation\n\n"
-                    f"{result.content}\n\n"
-                    f"---\n"
-                    f"*This PR was created by AI.*"
+                    f"{result.content}"
                 )
             )
 
+            header = "IMPLEMENTATION CREATED"
             comment = (
-                f"IMPLEMENTATION CREATED\n"
-                f"======================\n\n"
+                f"{header}\n"
+                f"{'=' * len(header)}\n\n"
                 f"Pull Request: {pr.html_url}\n\n"
                 f"Review the changes and merge when ready."
             )

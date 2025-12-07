@@ -7,6 +7,13 @@ from github import Github
 from alm_orchestrator.config import Config
 
 
+# Git/GitHub constants
+DEFAULT_BRANCH = "main"
+CLONE_DEPTH = 1
+TEMP_DIR_PREFIX = "alm-orchestrator-"
+GITHUB_CLONE_URL_PATTERN = "https://{token}@github.com/{repo}.git"
+
+
 class GitHubClient:
     """Client for interacting with GitHub API and git operations."""
 
@@ -26,13 +33,16 @@ class GitHubClient:
         Returns:
             HTTPS clone URL with token for authentication.
         """
-        return f"https://{self._config.github_token}@github.com/{self._config.github_repo}.git"
+        return GITHUB_CLONE_URL_PATTERN.format(
+            token=self._config.github_token,
+            repo=self._config.github_repo
+        )
 
-    def clone_repo(self, branch: str = "main") -> str:
+    def clone_repo(self, branch: str = DEFAULT_BRANCH) -> str:
         """Clone the repository to a temporary directory.
 
         Args:
-            branch: Branch to clone. Defaults to "main".
+            branch: Branch to clone. Defaults to DEFAULT_BRANCH.
 
         Returns:
             Path to the cloned repository working directory.
@@ -40,11 +50,11 @@ class GitHubClient:
         Raises:
             subprocess.CalledProcessError: If git clone fails.
         """
-        work_dir = tempfile.mkdtemp(prefix="alm-orchestrator-")
+        work_dir = tempfile.mkdtemp(prefix=TEMP_DIR_PREFIX)
         clone_url = self.get_authenticated_clone_url()
 
         subprocess.run(
-            ["git", "clone", "--depth", "1", "--branch", branch, clone_url, work_dir],
+            ["git", "clone", "--depth", str(CLONE_DEPTH), "--branch", branch, clone_url, work_dir],
             check=True,
             capture_output=True,
         )
@@ -113,7 +123,7 @@ class GitHubClient:
         branch: str,
         title: str,
         body: str,
-        base: str = "main"
+        base: str = DEFAULT_BRANCH
     ):
         """Create a pull request.
 
@@ -121,7 +131,7 @@ class GitHubClient:
             branch: Head branch name.
             title: PR title.
             body: PR description body.
-            base: Base branch to merge into. Defaults to "main".
+            base: Base branch to merge into. Defaults to DEFAULT_BRANCH.
 
         Returns:
             The created PullRequest object.

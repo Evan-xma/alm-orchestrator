@@ -10,6 +10,12 @@ class ConfigError(Exception):
     pass
 
 
+# Default values
+DEFAULT_POLL_INTERVAL_SECONDS = 30
+DEFAULT_ATLASSIAN_TOKEN_URL = "https://auth.atlassian.com/oauth/token"
+DEFAULT_ATLASSIAN_RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
+
+
 @dataclass(frozen=True)
 class Config:
     """Immutable configuration for the orchestrator."""
@@ -20,10 +26,10 @@ class Config:
     github_repo: str
     jira_client_id: str
     jira_client_secret: str
-    poll_interval_seconds: int = 30
+    poll_interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS
     anthropic_api_key: Optional[str] = None
-    atlassian_token_url: str = "https://auth.atlassian.com/oauth/token"
-    atlassian_resources_url: str = "https://api.atlassian.com/oauth/token/accessible-resources"
+    atlassian_token_url: str = DEFAULT_ATLASSIAN_TOKEN_URL
+    atlassian_resources_url: str = DEFAULT_ATLASSIAN_RESOURCES_URL
 
     @property
     def github_owner(self) -> str:
@@ -55,7 +61,7 @@ class Config:
         if missing:
             raise ConfigError(f"Missing required environment variables: {', '.join(missing)}")
 
-        poll_interval = os.getenv("POLL_INTERVAL_SECONDS", "30")
+        poll_interval = os.getenv("POLL_INTERVAL_SECONDS", str(DEFAULT_POLL_INTERVAL_SECONDS))
         try:
             poll_interval_int = int(poll_interval)
         except ValueError:
@@ -72,10 +78,10 @@ class Config:
             anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
             atlassian_token_url=os.getenv(
                 "ATLASSIAN_TOKEN_URL",
-                "https://auth.atlassian.com/oauth/token"
+                DEFAULT_ATLASSIAN_TOKEN_URL
             ),
             atlassian_resources_url=os.getenv(
                 "ATLASSIAN_RESOURCES_URL",
-                "https://api.atlassian.com/oauth/token/accessible-resources"
+                DEFAULT_ATLASSIAN_RESOURCES_URL
             ),
         )
