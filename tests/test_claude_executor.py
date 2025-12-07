@@ -253,3 +253,74 @@ class TestSandboxSettings:
         dest_file = work_dir / ".claude" / "settings.local.json"
         assert dest_file.exists()
         assert '"sandbox"' in dest_file.read_text()
+
+    def test_raises_on_missing_settings(self, mocker, tmp_path):
+        """Verify FileNotFoundError when settings file doesn't exist."""
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        work_dir = tmp_path / "repo"
+        work_dir.mkdir()
+
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
+
+        with pytest.raises(FileNotFoundError, match="nonexistent"):
+            executor.execute(
+                work_dir=str(work_dir),
+                prompt="Test",
+                action="nonexistent"
+            )
+
+    def test_legacy_mode_without_prompts_dir(self, mocker, tmp_path):
+        """Verify legacy --allowedTools mode when prompts_dir is None."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=mock_json_response("Done"),
+            stderr=""
+        )
+
+        work_dir = tmp_path / "repo"
+        work_dir.mkdir()
+
+        # No prompts_dir = legacy mode
+        executor = ClaudeExecutor()
+        executor.execute(
+            work_dir=str(work_dir),
+            prompt="Test",
+            allowed_tools=ClaudeExecutor.TOOLS_READONLY
+        )
+
+        cmd = mock_run.call_args[0][0]
+        assert "--allowedTools" in cmd
+        assert "--permission-mode" in cmd
+
+        # No settings.local.json should be created
+        settings_file = work_dir / ".claude" / "settings.local.json"
+        assert not settings_file.exists()
+
+    def test_action_mode_skips_allowed_tools_flag(self, mocker, tmp_path):
+        """Verify --allowedTools is NOT passed when using action settings."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=mock_json_response("Done"),
+            stderr=""
+        )
+
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+        (prompts_dir / "investigate.json").write_text('{"sandbox": {"enabled": true}}')
+
+        work_dir = tmp_path / "repo"
+        work_dir.mkdir()
+
+        executor = ClaudeExecutor(prompts_dir=str(prompts_dir))
+        executor.execute(
+            work_dir=str(work_dir),
+            prompt="Test",
+            action="investigate"
+        )
+
+        cmd = mock_run.call_args[0][0]
+        assert "--allowedTools" not in cmd
+        assert "--permission-mode" not in cmd
