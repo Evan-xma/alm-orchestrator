@@ -2,7 +2,6 @@
 
 import os
 from alm_orchestrator.actions.base import BaseAction
-from alm_orchestrator.claude_executor import ClaudeExecutor
 
 
 class InvestigateAction(BaseAction):
@@ -42,7 +41,7 @@ class InvestigateAction(BaseAction):
                     "issue_summary": summary,
                     "issue_description": description,
                 },
-                allowed_tools=ClaudeExecutor.TOOLS_READONLY,
+                action="investigate",
             )
 
             # Post findings as Jira comment

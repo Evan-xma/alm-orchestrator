@@ -2,7 +2,6 @@
 
 import os
 from alm_orchestrator.actions.base import BaseAction
-from alm_orchestrator.claude_executor import ClaudeExecutor
 
 
 class ImpactAction(BaseAction):
@@ -40,7 +39,7 @@ class ImpactAction(BaseAction):
                     "issue_summary": summary,
                     "issue_description": description,
                 },
-                allowed_tools=ClaudeExecutor.TOOLS_READONLY,
+                action="impact",
             )
 
             comment = f"IMPACT ANALYSIS\n{'=' * 15}\n\n{result.content}"

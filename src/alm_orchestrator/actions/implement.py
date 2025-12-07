@@ -2,7 +2,6 @@
 
 import os
 from alm_orchestrator.actions.base import BaseAction
-from alm_orchestrator.claude_executor import ClaudeExecutor
 
 
 class ImplementAction(BaseAction):
@@ -44,7 +43,7 @@ class ImplementAction(BaseAction):
                     "issue_summary": summary,
                     "issue_description": description,
                 },
-                allowed_tools=ClaudeExecutor.TOOLS_READWRITE,
+                action="implement",
             )
 
             commit_message = f"feat: {summary}\n\nJira: {issue_key}"

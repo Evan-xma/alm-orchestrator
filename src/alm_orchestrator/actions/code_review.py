@@ -3,7 +3,6 @@
 import os
 
 from alm_orchestrator.actions.base import BaseAction
-from alm_orchestrator.claude_executor import ClaudeExecutor
 from alm_orchestrator.utils.pr_extraction import find_pr_in_texts
 
 
@@ -55,7 +54,7 @@ class CodeReviewAction(BaseAction):
                 work_dir=work_dir,
                 template_path=template_path,
                 context={"issue_key": issue_key},
-                allowed_tools=ClaudeExecutor.TOOLS_READONLY,
+                action="code_review",
             )
 
             # Post review as PR comment
