@@ -57,8 +57,12 @@ class TestJiraClient:
 
     def test_get_ai_labels_for_issue(self, mock_config, mocker):
         mock_jira = MagicMock()
+        mock_myself = MagicMock()
+        mock_myself.__getitem__ = lambda self, key: "mock-account-id" if key == "accountId" else None
+        mock_jira.myself.return_value = mock_myself
         mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
         mocker.patch.object(OAuthTokenManager, "get_token", return_value="mock-access-token")
+        mocker.patch.object(OAuthTokenManager, "get_api_url", return_value="https://api.atlassian.com/ex/jira/mock-cloud-id")
 
         mock_issue = MagicMock()
         mock_issue.fields.labels = ["ai-investigate", "ai-impact", "bug", "priority-high"]
@@ -70,8 +74,13 @@ class TestJiraClient:
         assert "bug" not in ai_labels
 
     def test_ai_label_constants(self, mock_config, mocker):
-        mocker.patch("alm_orchestrator.jira_client.JIRA")
+        mock_jira = MagicMock()
+        mock_myself = MagicMock()
+        mock_myself.__getitem__ = lambda self, key: "mock-account-id" if key == "accountId" else None
+        mock_jira.myself.return_value = mock_myself
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
         mocker.patch.object(OAuthTokenManager, "get_token", return_value="mock-access-token")
+        mocker.patch.object(OAuthTokenManager, "get_api_url", return_value="https://api.atlassian.com/ex/jira/mock-cloud-id")
         client = JiraClient(mock_config)
 
         assert "ai-investigate" in client.AI_LABELS
@@ -81,6 +90,21 @@ class TestJiraClient:
         assert "ai-implement" in client.AI_LABELS
         assert "ai-code-review" in client.AI_LABELS
         assert "ai-security-review" in client.AI_LABELS
+
+    def test_account_id_fetched_at_init(self, mock_config, mocker):
+        """Test that account_id is fetched at initialization."""
+        mock_jira = MagicMock()
+        mock_myself = MagicMock()
+        mock_myself.__getitem__ = lambda self, key: "abc123-account-id" if key == "accountId" else None
+        mock_jira.myself.return_value = mock_myself
+        mocker.patch("alm_orchestrator.jira_client.JIRA", return_value=mock_jira)
+        mocker.patch.object(OAuthTokenManager, "get_token", return_value="mock-access-token")
+        mocker.patch.object(OAuthTokenManager, "get_api_url", return_value="https://api.atlassian.com/ex/jira/mock-cloud-id")
+
+        client = JiraClient(mock_config)
+
+        assert client.account_id == "abc123-account-id"
+        mock_jira.myself.assert_called_once()
 
 
 class TestJiraClientUpdates:

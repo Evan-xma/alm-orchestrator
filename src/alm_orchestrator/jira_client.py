@@ -1,11 +1,14 @@
 """Jira API client for the ALM Orchestrator."""
 
+import logging
 import time
 from typing import List, Optional
 
 import requests
 from jira import JIRA, Issue
 from alm_orchestrator.config import Config
+
+logger = logging.getLogger(__name__)
 
 
 # OAuth constants
@@ -135,6 +138,13 @@ class JiraClient:
             resources_url=config.atlassian_resources_url,
         )
         self._jira: Optional[JIRA] = None
+        self._account_id: Optional[str] = None
+        self._fetch_account_id()
+
+    @property
+    def account_id(self) -> str:
+        """The Jira account ID of this service account."""
+        return self._account_id
 
     def _get_jira(self) -> JIRA:
         """Get a JIRA client with a valid access token.
@@ -157,6 +167,13 @@ class JiraClient:
                 token_auth=token,
             )
         return self._jira
+
+    def _fetch_account_id(self) -> None:
+        """Fetch and cache the service account's Jira account ID."""
+        jira = self._get_jira()
+        myself = jira.myself()
+        self._account_id = myself["accountId"]
+        logger.debug(f"Service account ID: {self._account_id}")
 
     def fetch_issues_with_ai_labels(self) -> List[Issue]:
         """Fetch all issues in the project that have at least one AI label.
