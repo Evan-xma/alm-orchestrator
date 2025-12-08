@@ -33,13 +33,17 @@ class RecommendAction(BaseAction):
         # Check for prior investigation results
         investigation_comment = jira_client.get_investigation_comment(issue_key)
         if investigation_comment:
+            logger.info(
+                f"Found investigation comment for {issue_key}, "
+                f"including in recommendation context"
+            )
             investigation_section = (
                 "## Prior Investigation\n\n"
                 "The following investigation was already performed on this issue:\n\n"
                 f"{investigation_comment}"
             )
         else:
-            logger.debug(
+            logger.info(
                 f"No investigation comment found for {issue_key} "
                 f"from account {jira_client.account_id}"
             )
