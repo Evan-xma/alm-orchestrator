@@ -311,21 +311,10 @@ class JiraClient:
     def get_investigation_comment(self, issue_key: str) -> Optional[str]:
         """Get the most recent investigation comment from this service account.
 
-        Looks for comments that:
-        1. Were authored by this service account
-        2. Start with "INVESTIGATION RESULTS"
-
         Args:
             issue_key: The issue key (e.g., "TEST-123").
 
         Returns:
             The comment body if found, None otherwise.
         """
-        comments = self.get_comments(issue_key)
-        for comment in comments:
-            if (
-                comment["author_id"] == self._account_id
-                and comment["body"].startswith("INVESTIGATION RESULTS")
-            ):
-                return comment["body"]
-        return None
+        return self.get_comment_by_header(issue_key, "INVESTIGATION RESULTS")
