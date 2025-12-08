@@ -318,3 +318,14 @@ class JiraClient:
             The comment body if found, None otherwise.
         """
         return self.get_comment_by_header(issue_key, "INVESTIGATION RESULTS")
+
+    def get_recommendation_comment(self, issue_key: str) -> Optional[str]:
+        """Get the most recent recommendation comment from this service account.
+
+        Args:
+            issue_key: The issue key (e.g., "TEST-123").
+
+        Returns:
+            The comment body if found, None otherwise.
+        """
+        return self.get_comment_by_header(issue_key, "RECOMMENDATIONS")

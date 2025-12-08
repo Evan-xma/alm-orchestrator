@@ -430,3 +430,21 @@ class TestJiraClientCommentByHeader:
         result = client.get_comment_by_header("TEST-123", "TEST HEADER")
 
         assert "New content" in result
+
+    def test_get_recommendation_comment_finds_matching(self, mock_config, mock_jira_setup):
+        """Test finding recommendation comment from service account."""
+        mock_jira = mock_jira_setup
+
+        mock_comment = MagicMock()
+        mock_comment.body = "RECOMMENDATIONS\n===============\n\nOption 1: Do X."
+        mock_comment.created = "2024-01-01T10:00:00.000+0000"
+        mock_comment.author.accountId = "bot-account-id"
+
+        mock_issue = MagicMock()
+        mock_issue.fields.comment.comments = [mock_comment]
+        mock_jira.issue.return_value = mock_issue
+
+        client = JiraClient(mock_config)
+        result = client.get_recommendation_comment("TEST-123")
+
+        assert result == "RECOMMENDATIONS\n===============\n\nOption 1: Do X."
