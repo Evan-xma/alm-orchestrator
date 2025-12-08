@@ -1,7 +1,10 @@
 """Implement action handler for feature implementation."""
 
+import logging
 import os
 from alm_orchestrator.actions.base import BaseAction
+
+logger = logging.getLogger(__name__)
 
 
 # Label and conventions for features
@@ -33,6 +36,11 @@ class ImplementAction(BaseAction):
         summary = issue.fields.summary
         description = issue.fields.description or ""
 
+        # Check for prior analysis results
+        prior_analysis_section = self._build_prior_analysis_section(
+            issue_key, jira_client
+        )
+
         work_dir = github_client.clone_repo()
         branch_name = f"{BRANCH_PREFIX_FEATURE}{issue_key.lower()}"
 
@@ -48,6 +56,7 @@ class ImplementAction(BaseAction):
                     "issue_key": issue_key,
                     "issue_summary": summary,
                     "issue_description": description,
+                    "prior_analysis_section": prior_analysis_section,
                 },
                 action="implement",
             )
@@ -82,3 +91,23 @@ class ImplementAction(BaseAction):
 
         finally:
             github_client.cleanup(work_dir)
+
+    def _build_prior_analysis_section(self, issue_key: str, jira_client) -> str:
+        """Build the prior analysis section from recommendation.
+
+        Args:
+            issue_key: The issue key (e.g., "TEST-123").
+            jira_client: JiraClient for fetching comments.
+
+        Returns:
+            Formatted prior analysis section, or empty string if none found.
+        """
+        recommendation_comment = jira_client.get_recommendation_comment(issue_key)
+        if recommendation_comment:
+            return (
+                "## Recommended Approach\n\n"
+                f"{recommendation_comment}"
+            )
+        else:
+            logger.info(f"No recommendation comment found for {issue_key}")
+            return ""

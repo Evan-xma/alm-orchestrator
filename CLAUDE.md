@@ -67,6 +67,7 @@ Some actions automatically include context from prior actions on the same issue:
 |--------|-------------------|
 | `ai-recommend` | `ai-investigate` results |
 | `ai-fix` | `ai-investigate` and `ai-recommend` results |
+| `ai-implement` | `ai-recommend` results |
 
 Context is fetched via `JiraClient.get_investigation_comment()` and `get_recommendation_comment()`, which match by comment header and service account ID.
 
