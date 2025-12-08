@@ -8,6 +8,8 @@
 ## Description
 {issue_description}
 
+{prior_analysis_section}
+
 ## Your Task
 
 Implement this feature following TDD principles:
