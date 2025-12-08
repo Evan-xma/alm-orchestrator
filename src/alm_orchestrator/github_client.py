@@ -61,7 +61,7 @@ class GitHubClient:
             check=True,
             capture_output=True,
         )
-        logger.debug(f"Clone completed: {work_dir}")
+        logger.info(f"Clone completed: {work_dir}")
 
         return work_dir
 
@@ -82,7 +82,7 @@ class GitHubClient:
             check=True,
             capture_output=True,
         )
-        logger.debug(f"Branch created: {branch_name}")
+        logger.info(f"Branch created: {branch_name}")
 
     def commit_and_push(
         self, work_dir: str, branch: str, message: str, issue_key: str
@@ -121,7 +121,7 @@ class GitHubClient:
             check=True,
             capture_output=True,
         )
-        logger.debug(f"Push completed: {branch}")
+        logger.info(f"Push completed: {branch}")
 
     def cleanup(self, work_dir: str) -> None:
         """Remove the temporary working directory.
@@ -129,7 +129,7 @@ class GitHubClient:
         Args:
             work_dir: Path to remove.
         """
-        logger.debug(f"Cleaning up work directory: {work_dir}")
+        logger.info(f"Cleaning up work directory: {work_dir}")
         shutil.rmtree(work_dir, ignore_errors=True)
 
     def create_pull_request(
@@ -167,7 +167,7 @@ class GitHubClient:
             pr_number: The PR number.
             body: Comment text (supports GitHub markdown).
         """
-        logger.debug(f"Adding comment to PR #{pr_number}")
+        logger.info(f"Adding comment to PR #{pr_number}")
         pr = self._repo.get_pull(pr_number)
         pr.create_issue_comment(body)
 
@@ -180,7 +180,7 @@ class GitHubClient:
         Returns:
             Dict with keys: head_branch, base_branch, changed_files, title, body.
         """
-        logger.debug(f"Getting PR info for #{pr_number}")
+        logger.info(f"Getting PR info for #{pr_number}")
         pr = self._repo.get_pull(pr_number)
         changed_files = [f.filename for f in pr.get_files()]
         return {
@@ -200,11 +200,11 @@ class GitHubClient:
         Returns:
             PullRequest object if found, None otherwise.
         """
-        logger.debug(f"Looking up PR for branch: {branch}")
+        logger.info(f"Looking up PR for branch: {branch}")
         prs = self._repo.get_pulls(state="open", head=f"{self._config.github_owner}:{branch}")
         for pr in prs:
             if pr.head.ref == branch:
-                logger.debug(f"Found PR #{pr.number} for branch: {branch}")
+                logger.info(f"Found PR #{pr.number} for branch: {branch}")
                 return pr
-        logger.debug(f"No PR found for branch: {branch}")
+        logger.info(f"No PR found for branch: {branch}")
         return None

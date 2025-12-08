@@ -68,7 +68,7 @@ class ClaudeExecutor:
         # Copy settings to settings.local.json (higher precedence than settings.json)
         settings_dst = claude_dir / "settings.local.json"
         shutil.copy(settings_src, settings_dst)
-        logger.debug(f"Installed sandbox settings for '{action}' to {settings_dst}")
+        logger.info(f"Installed sandbox settings for '{action}' to {settings_dst}")
 
     def execute(
         self,
@@ -97,10 +97,11 @@ class ClaudeExecutor:
             "--output-format", "json",
         ]
 
-        logger.debug(
+        logger.info(
             f"Executing Claude Code CLI in {work_dir} "
             f"(action={action}, timeout={self._timeout}s)"
         )
+        logger.info("Running command: claude -p <prompt> --output-format json")
 
         start_time = time.monotonic()
         try:
@@ -117,7 +118,7 @@ class ClaudeExecutor:
             ) from e
         finally:
             elapsed = time.monotonic() - start_time
-            logger.debug(f"Claude Code CLI completed in {elapsed:.1f}s")
+            logger.info(f"Claude Code CLI completed in {elapsed:.1f}s")
 
         if result.returncode != 0:
             error_msg = result.stderr or result.stdout or "Unknown error"

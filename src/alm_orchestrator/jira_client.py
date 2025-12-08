@@ -173,7 +173,7 @@ class JiraClient:
         jira = self._get_jira()
         myself = jira.myself()
         self._account_id = myself["accountId"]
-        logger.debug(f"Service account ID: {self._account_id}")
+        logger.info(f"Service account ID: {self._account_id}")
 
     def fetch_issues_with_ai_labels(self) -> List[Issue]:
         """Fetch all issues in the project that have at least one AI label.
