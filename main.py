@@ -25,7 +25,7 @@ LOG_FORMAT_FILE = "%(asctime)s,%(levelname)s,%(name)s,%(message)s"
 LOG_DATEFMT_CONSOLE = "%H:%M:%S"
 LOG_DATEFMT_FILE = "%Y-%m-%d %H:%M:%S"
 LOG_FILE_PREFIX = "run-"
-LOG_FILE_EXTENSION = ".csv"
+LOG_FILE_EXTENSION = ".log"
 LOG_TIMESTAMP_FORMAT = "%Y%m%d-%H%M%S"
 
 
