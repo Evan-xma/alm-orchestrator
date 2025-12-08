@@ -105,6 +105,7 @@ Environment variables loaded from `.env`:
 - `JIRA_URL`, `JIRA_PROJECT_KEY` - Jira instance URL and project key
 - `JIRA_CLIENT_ID`, `JIRA_CLIENT_SECRET` - OAuth 2.0 credentials for service account
 - `GITHUB_TOKEN`, `GITHUB_REPO` - GitHub PAT and repo in `owner/repo` format
+- `GITHUB_CLONE_URL_PATTERN` - Clone URL pattern (default: `https://{token}@github.com/{repo}.git`)
 - `ANTHROPIC_API_KEY` (optional if using Vertex AI)
 - `POLL_INTERVAL_SECONDS` (default: 30)
 - `CLAUDE_TIMEOUT_SECONDS` - Claude Code CLI timeout in seconds (default: 600)

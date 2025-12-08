@@ -16,6 +16,7 @@ DEFAULT_CLAUDE_TIMEOUT_SECONDS = 600  # 10 minutes
 DEFAULT_ATLASSIAN_TOKEN_URL = "https://auth.atlassian.com/oauth/token"
 DEFAULT_ATLASSIAN_RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
 DEFAULT_ATLASSIAN_API_URL_PATTERN = "https://api.atlassian.com/ex/jira/{cloud_id}"
+DEFAULT_GITHUB_CLONE_URL_PATTERN = "https://{token}@github.com/{repo}.git"
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class Config:
     atlassian_token_url: str = DEFAULT_ATLASSIAN_TOKEN_URL
     atlassian_resources_url: str = DEFAULT_ATLASSIAN_RESOURCES_URL
     atlassian_api_url_pattern: str = DEFAULT_ATLASSIAN_API_URL_PATTERN
+    github_clone_url_pattern: str = DEFAULT_GITHUB_CLONE_URL_PATTERN
 
     @property
     def github_owner(self) -> str:
@@ -98,5 +100,9 @@ class Config:
             atlassian_api_url_pattern=os.getenv(
                 "ATLASSIAN_API_URL_PATTERN",
                 DEFAULT_ATLASSIAN_API_URL_PATTERN
+            ),
+            github_clone_url_pattern=os.getenv(
+                "GITHUB_CLONE_URL_PATTERN",
+                DEFAULT_GITHUB_CLONE_URL_PATTERN
             ),
         )

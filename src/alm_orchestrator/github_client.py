@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_BRANCH = "main"
 CLONE_DEPTH = 1
 TEMP_DIR_PREFIX = "alm-orchestrator-"
-GITHUB_CLONE_URL_PATTERN = "https://{token}@github.com/{repo}.git"
 
 
 class GitHubClient:
@@ -36,7 +35,7 @@ class GitHubClient:
         Returns:
             HTTPS clone URL with token for authentication.
         """
-        return GITHUB_CLONE_URL_PATTERN.format(
+        return self._config.github_clone_url_pattern.format(
             token=self._config.github_token,
             repo=self._config.github_repo
         )
