@@ -8,6 +8,8 @@
 ## Description
 {issue_description}
 
+{prior_analysis_section}
+
 ## Your Task
 
 Fix this bug following TDD principles:
