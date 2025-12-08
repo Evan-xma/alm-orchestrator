@@ -6,7 +6,8 @@ from alm_orchestrator.actions.base import BaseAction
 
 logger = logging.getLogger(__name__)
 
-# Branch and commit conventions for fixes
+# Label and conventions for fixes
+LABEL_FIX = "ai-fix"
 BRANCH_PREFIX_FIX = "fix-"
 COMMIT_PREFIX_FIX = "fix: "
 
@@ -16,7 +17,7 @@ class FixAction(BaseAction):
 
     @property
     def label(self) -> str:
-        return "ai-fix"
+        return LABEL_FIX
 
     def execute(self, issue, jira_client, github_client, claude_executor) -> str:
         """Execute bug fix and create PR.
