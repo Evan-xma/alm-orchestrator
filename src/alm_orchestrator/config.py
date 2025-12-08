@@ -15,6 +15,7 @@ DEFAULT_POLL_INTERVAL_SECONDS = 30
 DEFAULT_CLAUDE_TIMEOUT_SECONDS = 600  # 10 minutes
 DEFAULT_ATLASSIAN_TOKEN_URL = "https://auth.atlassian.com/oauth/token"
 DEFAULT_ATLASSIAN_RESOURCES_URL = "https://api.atlassian.com/oauth/token/accessible-resources"
+DEFAULT_ATLASSIAN_API_URL_PATTERN = "https://api.atlassian.com/ex/jira/{cloud_id}"
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class Config:
     anthropic_api_key: Optional[str] = None
     atlassian_token_url: str = DEFAULT_ATLASSIAN_TOKEN_URL
     atlassian_resources_url: str = DEFAULT_ATLASSIAN_RESOURCES_URL
+    atlassian_api_url_pattern: str = DEFAULT_ATLASSIAN_API_URL_PATTERN
 
     @property
     def github_owner(self) -> str:
@@ -92,5 +94,9 @@ class Config:
             atlassian_resources_url=os.getenv(
                 "ATLASSIAN_RESOURCES_URL",
                 DEFAULT_ATLASSIAN_RESOURCES_URL
+            ),
+            atlassian_api_url_pattern=os.getenv(
+                "ATLASSIAN_API_URL_PATTERN",
+                DEFAULT_ATLASSIAN_API_URL_PATTERN
             ),
         )

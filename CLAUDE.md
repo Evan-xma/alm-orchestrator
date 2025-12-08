@@ -108,6 +108,7 @@ Environment variables loaded from `.env`:
 - `ANTHROPIC_API_KEY` (optional if using Vertex AI)
 - `POLL_INTERVAL_SECONDS` (default: 30)
 - `CLAUDE_TIMEOUT_SECONDS` - Claude Code CLI timeout in seconds (default: 600)
+- `ATLASSIAN_API_URL_PATTERN` - Jira API URL pattern (default: `https://api.atlassian.com/ex/jira/{cloud_id}`)
 
 #### Creating Jira OAuth 2.0 Credentials
 

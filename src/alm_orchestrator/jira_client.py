@@ -16,9 +16,6 @@ OAUTH_GRANT_TYPE = "client_credentials"
 OAUTH_CONTENT_TYPE = "application/x-www-form-urlencoded"
 DEFAULT_TOKEN_EXPIRY_SECONDS = 3600  # 1 hour
 
-# API URL pattern for Atlassian service accounts
-ATLASSIAN_API_URL_PATTERN = "https://api.atlassian.com/ex/jira/{cloud_id}"
-
 
 class OAuthTokenManager:
     """Manages OAuth 2.0 access tokens for Atlassian service accounts."""
@@ -32,11 +29,13 @@ class OAuthTokenManager:
         client_secret: str,
         token_url: str,
         resources_url: str,
+        api_url_pattern: str,
     ):
         self._client_id = client_id
         self._client_secret = client_secret
         self._token_url = token_url
         self._resources_url = resources_url
+        self._api_url_pattern = api_url_pattern
         self._access_token: Optional[str] = None
         self._expires_at: Optional[float] = None
         self._cloud_id: Optional[str] = None
@@ -62,7 +61,7 @@ class OAuthTokenManager:
         Service accounts must use api.atlassian.com with the cloudId.
         """
         cloud_id = self.get_cloud_id()
-        return ATLASSIAN_API_URL_PATTERN.format(cloud_id=cloud_id)
+        return self._api_url_pattern.format(cloud_id=cloud_id)
 
     def _needs_refresh(self) -> bool:
         """Check if token needs to be refreshed."""
@@ -136,6 +135,7 @@ class JiraClient:
             client_secret=config.jira_client_secret,
             token_url=config.atlassian_token_url,
             resources_url=config.atlassian_resources_url,
+            api_url_pattern=config.atlassian_api_url_pattern,
         )
         self._jira: Optional[JIRA] = None
         self._account_id: Optional[str] = None
