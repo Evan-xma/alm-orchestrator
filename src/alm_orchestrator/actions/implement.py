@@ -61,6 +61,15 @@ class ImplementAction(BaseAction):
                 action="implement",
             )
 
+            # Check if Claude rejected the ticket as invalid/unsafe
+            if self._is_invalid_ticket(result.content):
+                logger.warning(f"Invalid ticket rejected: {issue_key}")
+                header = "INVALID TICKET"
+                comment = f"{header}\n{'=' * len(header)}"
+                jira_client.add_comment(issue_key, comment)
+                jira_client.remove_label(issue_key, self.label)
+                return f"Invalid ticket rejected for {issue_key}"
+
             commit_message = f"{COMMIT_PREFIX_FEAT}{summary}\n\nJira: {issue_key}"
             github_client.commit_and_push(work_dir, branch_name, commit_message, issue_key)
 
@@ -91,6 +100,18 @@ class ImplementAction(BaseAction):
 
         finally:
             github_client.cleanup(work_dir)
+
+    def _is_invalid_ticket(self, content: str) -> bool:
+        """Check if Claude's response indicates an invalid/unsafe ticket.
+
+        Args:
+            content: The response content from Claude.
+
+        Returns:
+            True if the ticket was rejected as invalid.
+        """
+        stripped = content.strip()
+        return stripped == "INVALID TICKET" or stripped.startswith("INVALID TICKET\n")
 
     def _build_prior_analysis_section(self, issue_key: str, jira_client) -> str:
         """Build the prior analysis section from recommendation.
