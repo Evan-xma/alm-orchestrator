@@ -1,8 +1,11 @@
 """Base class for AI action handlers."""
 
+import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # Action label and template conventions
@@ -61,3 +64,53 @@ class BaseAction(ABC):
         """
         template_name = self.label.replace(AI_LABEL_PREFIX, "") + TEMPLATE_EXTENSION
         return os.path.join(self._prompts_dir, template_name)
+
+    @property
+    def allowed_issue_types(self) -> list[str]:
+        """Issue types this action can run on. Override in subclasses.
+
+        Returns:
+            List of allowed issue type names (e.g., ["Bug", "Story"]).
+            Empty list means no validation (all types allowed).
+        """
+        return []
+
+    def validate_issue_type(self, issue, jira_client) -> bool:
+        """Check if issue type is allowed. Posts rejection comment if not.
+
+        Args:
+            issue: Jira issue object.
+            jira_client: JiraClient for posting comments and removing labels.
+
+        Returns:
+            True if valid (or no validation configured), False if rejected.
+        """
+        allowed = self.allowed_issue_types
+        if not allowed:
+            return True
+
+        issue_type = issue.fields.issuetype.name
+        if issue_type in allowed:
+            return True
+
+        # Log rejection
+        logger.debug(
+            f"Rejecting {issue.key}: {self.label} does not support issue type {issue_type}"
+        )
+
+        # Post rejection comment
+        allowed_str = ", ".join(allowed)
+        header = "INVALID ISSUE TYPE"
+        comment = (
+            f"{header}\n"
+            f"{'=' * len(header)}\n\n"
+            f"The {self.label} action only works on: {allowed_str}\n\n"
+            f"This issue is a {issue_type}. "
+            f"Please use an appropriate action for this issue type."
+        )
+        jira_client.add_comment(issue.key, comment)
+
+        # Remove label
+        jira_client.remove_label(issue.key, self.label)
+
+        return False
