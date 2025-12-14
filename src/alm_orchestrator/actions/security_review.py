@@ -15,6 +15,10 @@ class SecurityReviewAction(BaseAction):
     def label(self) -> str:
         return LABEL_SECURITY_REVIEW
 
+    @property
+    def allowed_issue_types(self) -> list[str]:
+        return ["Bug", "Story"]
+
     def execute(self, issue, jira_client, github_client, claude_executor) -> str:
         """Execute security review on PR.
 
@@ -29,6 +33,10 @@ class SecurityReviewAction(BaseAction):
         """
         issue_key = issue.key
         description = issue.fields.description or ""
+
+        # Validate issue type
+        if not self.validate_issue_type(issue, jira_client):
+            return f"Rejected {issue_key}: invalid issue type"
 
         # Fetch comments (sorted newest-first)
         comments = jira_client.get_comments(issue_key)
