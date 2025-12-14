@@ -13,6 +13,10 @@ class InvestigateAction(BaseAction):
     def label(self) -> str:
         return LABEL_INVESTIGATE
 
+    @property
+    def allowed_issue_types(self) -> list[str]:
+        return ["Bug"]
+
     def execute(self, issue, jira_client, github_client, claude_executor) -> str:
         """Execute root cause investigation.
 
@@ -28,6 +32,10 @@ class InvestigateAction(BaseAction):
         issue_key = issue.key
         summary = issue.fields.summary
         description = issue.fields.description or ""
+
+        # Validate issue type
+        if not self.validate_issue_type(issue, jira_client):
+            return f"Rejected {issue_key}: invalid issue type"
 
         # Clone the repo
         work_dir = github_client.clone_repo()

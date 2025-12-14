@@ -11,12 +11,43 @@ class TestInvestigateAction:
         action = InvestigateAction(prompts_dir="/tmp/prompts")
         assert action.label == "ai-investigate"
 
+    def test_allowed_issue_types(self):
+        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        assert action.allowed_issue_types == ["Bug"]
+
+    def test_execute_rejects_invalid_issue_type(self):
+        """Execute returns early for non-Bug issue types."""
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.issuetype.name = "Story"
+
+        mock_jira = MagicMock()
+        mock_github = MagicMock()
+        mock_claude = MagicMock()
+
+        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # Should not clone repo or invoke Claude
+        mock_github.clone_repo.assert_not_called()
+        mock_claude.execute_with_template.assert_not_called()
+
+        # Should post rejection comment and remove label
+        mock_jira.add_comment.assert_called_once()
+        assert "INVALID ISSUE TYPE" in mock_jira.add_comment.call_args[0][1]
+        mock_jira.remove_label.assert_called_once_with("TEST-123", "ai-investigate")
+
+        # Should return rejection message
+        assert "Rejected" in result
+        assert "TEST-123" in result
+
     def test_execute_flow(self, mocker):
         # Setup mocks
         mock_issue = MagicMock()
         mock_issue.key = "TEST-123"
         mock_issue.fields.summary = "Bug in recipe deletion"
         mock_issue.fields.description = "When deleting an author, recipes are orphaned"
+        mock_issue.fields.issuetype.name = "Bug"
 
         mock_jira = MagicMock()
         mock_github = MagicMock()
@@ -66,6 +97,7 @@ class TestInvestigateAction:
         mock_issue.key = "TEST-123"
         mock_issue.fields.summary = "Bug"
         mock_issue.fields.description = "Description"
+        mock_issue.fields.issuetype.name = "Bug"
 
         mock_jira = MagicMock()
         mock_github = MagicMock()
