@@ -26,7 +26,7 @@ Focus on:
 2. **Design** - Is the approach sound? Are there better alternatives?
 3. **Readability** - Is the code clear and well-organized?
 4. **Testing** - Are there adequate tests? Are edge cases covered?
-5. **Performance** - Any obvious performance issues?
+5. **Architecture** - Any obvious performance issues? Scalability? Fault tolerance?
 
 IMPORTANT: Only review the files listed above. Do not review other files in the repository.
 
