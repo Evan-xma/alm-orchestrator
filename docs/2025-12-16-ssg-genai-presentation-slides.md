@@ -159,7 +159,10 @@ def has_high_entropy_strings(text: str) -> bool:
 { "allow": ["Read(**)", "Glob(**)"], "deny": ["Write(**)", "Bash(curl:*)", "Read(.env*)"] }
 ```
 ```python
-result = subprocess.run(["ai-agent", "-p", prompt], cwd=work_dir, capture_output=True, timeout=600)
+with Ruleset(FSAccess.READ | FSAccess.WRITE | FSAccess.EXECUTE) as ruleset:
+    ruleset.add_rule(PathBeneath(work_dir, FSAccess.READ | FSAccess.WRITE | FSAccess.EXECUTE))
+    ruleset.apply()
+    result = subprocess.run(["ai-agent", "-p", prompt], cwd=work_dir, capture_output=True, timeout=600)
 ```
 
 ---
