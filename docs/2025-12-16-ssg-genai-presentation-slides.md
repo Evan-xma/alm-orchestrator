@@ -106,13 +106,17 @@ Ron Starling | CTO Advisor | Software Strategy Group
 ### What Level 3 Looks Like
 
 ```
-Jira ticket + label
-    → AI investigates (read-only)
-    → AI recommends approach
-    → Human approves
-    → AI implements + creates PR
-    → Human merges
+PR #847: Fix null pointer in payment service
+──────────────────────────────────────────
+Created by:     claude-agent
+Triggered by:   Jira PROJ-1234 [ai-fix]
+Reviews:        ✓ @claude-code-review (AI)
+                ✓ @jsmith (human)
+CI Status:      ✓ tests passing
+Merge:          Approved by @jsmith
 ```
+
+**Takeaway:** AI review multiplies human reviewer productivity — broader coverage, same accountability.
 
 ---
 
