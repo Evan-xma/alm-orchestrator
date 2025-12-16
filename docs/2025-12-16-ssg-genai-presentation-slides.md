@@ -77,15 +77,14 @@ Ron Starling | CTO Advisor | Software Strategy Group
    - 🔴 Red flag: Manually in IDE only
    - 🟢 Green flag: Automated triggers from tickets, PRs, CI
 
-### What Level 3 Looks Like
+### What Level 3 Looks Like: Integration Triggers
 
-```
-Labels trigger specific AI workflows:
-
-| ai-investigate | Root cause analysis     |
-| ai-fix         | Bug fix implementation  |
-| ai-code-review | Automated code review   |
-```
+| Source | Trigger Mechanism | AI Action |
+|--------|-------------------|-----------|
+| **Jira** | Label added, status transition, automation rule | Defect root cause analysis, recommend implementation/fix options |
+| **GitHub** | PR opened, comment, check run, webhook | Code review, security review, fix |
+| **CI/CD** | Build failure, test failure, quality gate | Root cause analysis, test case assessment, auto-fix PR |
+| **Security** | SAST/DAST finding, CVE alert | Vulnerability triage, recommend remediation |
 
 **Takeaway:** Breadth of AI integration signals organizational maturity — narrow usage just shifts the bottleneck.
 
