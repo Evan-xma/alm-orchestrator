@@ -162,10 +162,6 @@ def has_high_entropy_strings(text: str) -> bool:
     - ⚠️ Watch: Velocity-only metrics (cycle time, PR throughput)
     - 🟢 Green flag: Business outcomes (time-to-feature, defect escape rate, customer-facing quality)
 
-13. **"What behavior do your AI metrics encourage?"**
-    - 🔴 Red flag: Speed at all costs
-    - 🟢 Green flag: Balanced delivery + quality + value
-
 **Takeaway:** "Suggestions accepted" won't impress a customer. Measure delivery, quality, value — if AI is working, those improve.
 
 ---
@@ -224,3 +220,8 @@ Companies that can't articulate their AI strategy beyond "we use Copilot" are at
 - Code snippets are from a working implementation, not hypothetical
 - Security questions are the most differentiating — most targets haven't thought about prompt injection
 - The framework gives Partners a vocabulary for discussing AI maturity with clients
+
+### Slide 8: Measurement Assessment
+When evaluating their metrics, assess: *What behavior do their AI metrics encourage?*
+- 🔴 Red flag: Speed at all costs
+- 🟢 Green flag: Balanced delivery + quality + value
