@@ -149,6 +149,8 @@ with Ruleset(FSAccess.READ | FSAccess.WRITE | FSAccess.EXECUTE) as ruleset:
     result = subprocess.run(["ai-agent", "-p", prompt], cwd=work_dir, capture_output=True, timeout=600)
 ```
 
+**Takeaway:** The gap between "we use AI" and "we govern AI" is where risk hides. You cannot *escape* natural language.
+
 ---
 
 ## Slide 8: Measurement Questions
