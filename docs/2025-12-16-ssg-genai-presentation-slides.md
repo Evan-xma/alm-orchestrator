@@ -94,9 +94,10 @@ Ron Starling | CTO Advisor | Software Strategy Group
 
 ### What to Ask
 
-5. **"Who reviews AI-generated code before merge?"**
+5. **"What's your code review process before merge?"**
    - 🔴 Red flag: No formal process
-   - 🟢 Green flag: Defined approval gates
+   - ⚠️ Watch: Peer review only
+   - 🟢 Green flag: Two reviews required — one human, one AI agent
 
 6. **"What's your rollback story for AI-generated changes?"**
    - 🔴 Red flag: Blank stare
