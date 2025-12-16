@@ -154,14 +154,12 @@ def has_high_entropy_strings(text: str) -> bool:
     return False
 ```
 
-**Agent Isolation:** Run agent in separate process with restricted scope
-```python
-result = subprocess.run(["ai-agent", "-p", prompt], cwd=work_dir, capture_output=True, timeout=600)
-```
-
-**Sandboxing:** Restrict permissions per task type
+**Agent Isolation & Sandboxing:** Run agent in separate process with restricted permissions
 ```json
 { "allow": ["Read(**)", "Glob(**)"], "deny": ["Write(**)", "Bash(curl:*)", "Read(.env*)"] }
+```
+```python
+result = subprocess.run(["ai-agent", "-p", prompt], cwd=work_dir, capture_output=True, timeout=600)
 ```
 
 ---
