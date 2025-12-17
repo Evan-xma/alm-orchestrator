@@ -15,13 +15,15 @@ Ron Starling | CTO Advisor | Software Strategy Group
 
 ---
 
-## Slide 2: The Question PE Buyers Are Asking
+## Slide 2: The Uncomfortable Truth
 
-> "Is this company using AI effectively to build software?"
+> "We use GitHub Copilot."
 
-**The problem:** Most targets claim they're "using AI" — but we lack a framework to assess it.
+That's like saying "we have email." Congratulations — so does everyone else.
 
-**The opportunity:** Structured diligence questions reveal actual maturity vs. marketing.
+**There are levels to this game — and most targets don't know which level they're on.**
+
+**The opportunity:** Reveal actual AI maturity and identify the value creation roadmap for post-close.
 
 ---
 
