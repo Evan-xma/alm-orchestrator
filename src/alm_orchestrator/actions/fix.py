@@ -85,21 +85,31 @@ class FixAction(BaseAction):
                 )
             )
 
-            # Post PR link to Jira
+            # Format response with PR link and cost
             header = "FIX CREATED"
-            comment = (
+            response = (
                 f"{header}\n"
                 f"{'=' * len(header)}\n\n"
                 f"Pull Request: {pr.html_url}\n\n"
                 f"Review the changes and merge when ready."
                 f"\n\n---\n_Cost: ${result.cost_usd:.4f}_"
             )
-            jira_client.add_comment(issue_key, comment)
 
-            # Remove label
+            # Validate and post
+            posted = self._validate_and_post(
+                issue_key=issue_key,
+                response=response,
+                action_type="fix",
+                jira_client=jira_client
+            )
+
+            # Always remove the label to mark as processed (even if blocked)
             jira_client.remove_label(issue_key, self.label)
 
-            return f"Fix PR created for {issue_key}: {pr.html_url}"
+            if posted:
+                return f"Fix PR created for {issue_key}: {pr.html_url}"
+            else:
+                return f"Fix response blocked for {issue_key}"
 
         finally:
             github_client.cleanup(work_dir)
