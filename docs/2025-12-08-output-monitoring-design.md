@@ -1,6 +1,6 @@
 # Output Monitoring Design
 
-Status: **Ready for Implementation**
+Status: **Implemented**
 
 ## Goal
 
