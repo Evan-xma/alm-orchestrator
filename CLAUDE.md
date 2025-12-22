@@ -49,15 +49,22 @@ ALM Orchestrator is a daemon that polls Jira for issues with AI labels, invokes 
 
 ### Action System
 
-Actions are auto-discovered from `src/alm_orchestrator/actions/`. To add a new action:
+Actions are auto-discovered from `src/alm_orchestrator/actions/`. The router (`router.py`) uses `pkgutil.iter_modules()` to scan the actions package, instantiate all `BaseAction` subclasses, and register them by their label property.
 
-1. Create `actions/{name}.py` with a class extending `BaseAction`
+To add a new action:
+
+1. Create `src/alm_orchestrator/actions/{name}.py` with a class extending `BaseAction`
 2. Define label as a module constant (e.g., `LABEL_MYACTION = "ai-myaction"`)
 3. Return the constant from the `label` property
-4. Create `prompts/{name}.md` template
-5. Restart daemon — auto-discovered
+4. Implement the `execute()` method
+5. Create `prompts/{name}.md` template with your prompt
+6. Create `prompts/{name}.json` with sandbox settings
+7. Restart daemon — auto-discovered
 
-Label-to-template convention: `ai-investigate` → `prompts/investigate.md`
+**Conventions:**
+- Label to template: `ai-investigate` → `prompts/investigate.md`
+- Label to settings: `ai-investigate` → `prompts/investigate.json`
+- Template variables are substituted using `.format()`, with automatic escaping of user-controlled content to prevent format string injection
 
 ### Action Chaining
 
@@ -101,15 +108,23 @@ Convention: `prompts/{action}.md` (prompt) + `prompts/{action}.json` (settings)
 
 ### Configuration
 
-Environment variables loaded from `.env`:
-- `JIRA_URL`, `JIRA_PROJECT_KEY` - Jira instance URL and project key
+Environment variables loaded from `.env` and validated in `config.py`:
+
+**Required:**
+- `JIRA_URL` - Jira instance URL (e.g., `https://your-domain.atlassian.net`)
+- `JIRA_PROJECT_KEY` - Project key to poll
 - `JIRA_CLIENT_ID`, `JIRA_CLIENT_SECRET` - OAuth 2.0 credentials for service account
-- `GITHUB_TOKEN`, `GITHUB_REPO` - GitHub PAT and repo in `owner/repo` format
-- `GITHUB_CLONE_URL_PATTERN` - Clone URL pattern (default: `https://{token}@github.com/{repo}.git`)
-- `ANTHROPIC_API_KEY` (optional if using Vertex AI)
-- `POLL_INTERVAL_SECONDS` (default: 30)
-- `CLAUDE_TIMEOUT_SECONDS` - Claude Code CLI timeout in seconds (default: 600)
+- `GITHUB_TOKEN` - GitHub PAT with repo access
+- `GITHUB_REPO` - Repository in `owner/repo` format
+
+**Optional (with defaults):**
+- `ANTHROPIC_API_KEY` - Optional if using Vertex AI
+- `POLL_INTERVAL_SECONDS` - Polling frequency (default: 30)
+- `CLAUDE_TIMEOUT_SECONDS` - Claude Code CLI timeout (default: 600)
+- `ATLASSIAN_TOKEN_URL` - OAuth token endpoint (default: `https://auth.atlassian.com/oauth/token`)
+- `ATLASSIAN_RESOURCES_URL` - Accessible resources endpoint (default: `https://api.atlassian.com/oauth/token/accessible-resources`)
 - `ATLASSIAN_API_URL_PATTERN` - Jira API URL pattern (default: `https://api.atlassian.com/ex/jira/{cloud_id}`)
+- `GITHUB_CLONE_URL_PATTERN` - Clone URL pattern (default: `https://{token}@github.com/{repo}.git`)
 
 #### Creating Jira OAuth 2.0 Credentials
 
@@ -119,6 +134,31 @@ Environment variables loaded from `.env`:
 4. Click **Create credentials** → **OAuth 2.0**
 5. Select scopes: `read:jira-work`, `write:jira-work`
 6. Save the Client ID and Client Secret (cannot be retrieved later)
+
+### Key Implementation Details
+
+**ClaudeExecutor (`claude_executor.py`):**
+- Runs Claude Code CLI in headless mode with `--output-format json`
+- Installs sandbox settings to `.claude/settings.local.json` before execution (higher precedence than `settings.json`)
+- Parses JSON output to extract `result`, `cost_usd`, `duration_ms`, `session_id`, and `permission_denials`
+- Logs warnings if permission denials detected (indicates potential prompt injection or missing permissions)
+- Timeout configurable via `CLAUDE_TIMEOUT_SECONDS`
+
+**JiraClient (`jira_client.py`):**
+- Uses OAuth 2.0 with service account credentials
+- Adds `ai-processing` label during execution to prevent duplicate processing
+- Context retrieval methods (`get_investigation_comment()`, `get_recommendation_comment()`) match by comment header and service account ID
+- Fetches issues with JQL: `project = {key} AND labels IN ({ai_labels})`
+
+**GitHubClient (`github_client.py`):**
+- Clones repos to temporary directories with token authentication
+- Creates branches named `{action}/{issue-key}`
+- Handles PR creation and commenting
+
+**Error Handling:**
+- Actions that fail post an "ACTION FAILED" comment to Jira
+- `ai-processing` label is always removed after execution (in `finally` block)
+- Permission denials are logged as warnings for security monitoring
 
 ## Commit Guidelines
 
