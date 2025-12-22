@@ -1,9 +1,12 @@
 """Code review action handler."""
 
+import logging
 import os
 
 from alm_orchestrator.actions.base import BaseAction
 from alm_orchestrator.utils.pr_extraction import find_pr_in_texts
+
+logger = logging.getLogger(__name__)
 
 LABEL_CODE_REVIEW = "ai-code-review"
 
@@ -82,23 +85,46 @@ class CodeReviewAction(BaseAction):
                 action="code_review",
             )
 
-            # Post review as PR comment
+            # Format the review response
             header = "CODE REVIEW"
-            comment = f"{header}\n{'=' * len(header)}\n\n{result.content}"
-            github_client.add_pr_comment(pr_number, comment)
+            response = f"{header}\n{'=' * len(header)}\n\n{result.content}"
 
-            # Notify in Jira
-            complete_header = "CODE REVIEW COMPLETE"
-            jira_client.add_comment(
-                issue_key,
-                f"{complete_header}\n"
-                f"{'=' * len(complete_header)}\n\n"
-                f"Review posted to PR #{pr_number}"
-                f"\n\n---\n_Cost: ${result.cost_usd:.4f}_"
-            )
+            # Validate before posting
+            validation = self._validator.validate(response, "code_review")
+
+            if validation.is_valid:
+                # Post review to GitHub PR
+                github_client.add_pr_comment(pr_number, response)
+
+                # Notify in Jira
+                complete_header = "CODE REVIEW COMPLETE"
+                jira_response = (
+                    f"{complete_header}\n"
+                    f"{'=' * len(complete_header)}\n\n"
+                    f"Review posted to PR #{pr_number}"
+                    f"\n\n---\n_Cost: ${result.cost_usd:.4f}_"
+                )
+                jira_client.add_comment(issue_key, jira_response)
+            else:
+                # Log warning (no sensitive content)
+                logger.warning(f"Suspicious response for {issue_key}: {validation.failure_reason}")
+
+                # Post generic warning to Jira
+                header = "AI RESPONSE BLOCKED"
+                jira_client.add_comment(
+                    issue_key,
+                    f"{header}\n{'=' * len(header)}\n\n"
+                    "The AI agent's response was flagged by automated security checks "
+                    "and has not been posted. Please review the issue manually."
+                )
+
+            # Always remove the label
             jira_client.remove_label(issue_key, self.label)
 
-            return f"Code review complete for PR #{pr_number}"
+            if validation.is_valid:
+                return f"Code review complete for PR #{pr_number}"
+            else:
+                return f"Code review response blocked for {issue_key}"
 
         finally:
             github_client.cleanup(work_dir)
