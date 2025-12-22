@@ -16,6 +16,27 @@ class ValidationResult:
     failure_reason: str  # Generic, no sensitive content
 
 
+# Credential detection patterns
+CREDENTIAL_PATTERNS = [
+    # AWS
+    r"AKIA[0-9A-Z]{16}",  # AWS Access Key ID
+    r"(?i)aws.{0,20}secret.{0,20}['\"][0-9a-zA-Z/+]{40}['\"]",
+
+    # Private keys
+    r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
+    r"-----BEGIN PGP PRIVATE KEY BLOCK-----",
+
+    # JWTs
+    r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*",
+
+    # Generic API keys / tokens
+    r"(?i)(api[_-]?key|apikey|secret[_-]?key|access[_-]?token)['\"]?\s*[:=]\s*['\"][a-zA-Z0-9_\-]{20,}['\"]",
+
+    # Environment variable assignments
+    r"(?i)(PASSWORD|SECRET|TOKEN|CREDENTIAL|API_KEY)\s*=\s*['\"]?[^\s'\"]{8,}",
+]
+
+
 class OutputValidator:
     """Validates Claude's responses before posting to Jira/GitHub."""
 
@@ -28,3 +49,38 @@ class OutputValidator:
         """
         self._entropy_threshold = entropy_threshold
         self._min_entropy_length = min_entropy_length
+        self._credential_patterns: List[Pattern] = [
+            re.compile(pattern) for pattern in CREDENTIAL_PATTERNS
+        ]
+
+    def validate(self, response: str, action: str) -> ValidationResult:
+        """Check response for secrets and expected structure.
+
+        Args:
+            response: Claude's response text.
+            action: The action type (investigate, fix, etc).
+
+        Returns:
+            ValidationResult indicating if response is safe to post.
+        """
+        # Check for credentials
+        has_creds, reason = self._has_credentials(response)
+        if has_creds:
+            return ValidationResult(is_valid=False, failure_reason=reason)
+
+        return ValidationResult(is_valid=True, failure_reason="")
+
+    def _has_credentials(self, response: str) -> Tuple[bool, str]:
+        """Check for leaked secrets/credentials.
+
+        Args:
+            response: The response text to check.
+
+        Returns:
+            Tuple of (found, reason) where reason is "credential_detected" if found.
+        """
+        for pattern in self._credential_patterns:
+            if pattern.search(response):
+                return (True, "credential_detected")
+
+        return (False, "")
