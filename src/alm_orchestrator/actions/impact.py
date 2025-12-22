@@ -52,15 +52,28 @@ class ImpactAction(BaseAction):
                 action="impact",
             )
 
+            # Format response with cost footer
             header = "IMPACT ANALYSIS"
-            comment = (
+            response = (
                 f"{header}\n{'=' * len(header)}\n\n{result.content}"
                 f"\n\n---\n_Cost: ${result.cost_usd:.4f}_"
             )
-            jira_client.add_comment(issue_key, comment)
+
+            # Validate and post
+            posted = self._validate_and_post(
+                issue_key=issue_key,
+                response=response,
+                action_type="impact",
+                jira_client=jira_client
+            )
+
+            # Always remove the label to mark as processed (even if blocked)
             jira_client.remove_label(issue_key, self.label)
 
-            return f"Impact analysis complete for {issue_key}"
+            if posted:
+                return f"Impact analysis complete for {issue_key}"
+            else:
+                return f"Impact analysis response blocked for {issue_key}"
 
         finally:
             github_client.cleanup(work_dir)
