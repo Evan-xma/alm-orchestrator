@@ -8,11 +8,11 @@ from alm_orchestrator.claude_executor import ClaudeResult
 
 class TestInvestigateAction:
     def test_label_property(self):
-        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.label == "ai-investigate"
 
     def test_allowed_issue_types(self):
-        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.allowed_issue_types == ["Bug"]
 
     def test_execute_rejects_invalid_issue_type(self):
@@ -25,7 +25,7 @@ class TestInvestigateAction:
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
-        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Should not clone repo or invoke Claude
@@ -62,7 +62,7 @@ class TestInvestigateAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify clone happened
@@ -106,7 +106,7 @@ class TestInvestigateAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.side_effect = Exception("Claude failed")
 
-        action = InvestigateAction(prompts_dir="/tmp/prompts")
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=MagicMock())
 
         with pytest.raises(Exception, match="Claude failed"):
             action.execute(mock_issue, mock_jira, mock_github, mock_claude)

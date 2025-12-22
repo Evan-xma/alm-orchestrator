@@ -10,7 +10,7 @@ class MockAction(BaseAction):
     """Test action implementation."""
 
     def __init__(self, prompts_dir: str = "/tmp/prompts"):
-        super().__init__(prompts_dir)
+        super().__init__(prompts_dir, validator=MagicMock())
         self._label = "ai-mock"
 
     @property
@@ -82,7 +82,7 @@ class TestBaseAction:
     def test_label_property_is_abstract(self):
         # BaseAction cannot be instantiated directly
         with pytest.raises(TypeError):
-            BaseAction("/tmp/prompts")
+            BaseAction("/tmp/prompts", validator=MagicMock())
 
     def test_get_template_path(self):
         action = MockAction("/tmp/prompts")

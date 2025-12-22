@@ -8,11 +8,11 @@ from alm_orchestrator.claude_executor import ClaudeResult
 
 class TestRecommendAction:
     def test_label_property(self):
-        action = RecommendAction(prompts_dir="/tmp/prompts")
+        action = RecommendAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.label == "ai-recommend"
 
     def test_allowed_issue_types(self):
-        action = RecommendAction(prompts_dir="/tmp/prompts")
+        action = RecommendAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.allowed_issue_types == ["Bug", "Story"]
 
     def test_execute_rejects_invalid_issue_type(self):
@@ -25,7 +25,7 @@ class TestRecommendAction:
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
-        action = RecommendAction(prompts_dir="/tmp/prompts")
+        action = RecommendAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         mock_github.clone_repo.assert_not_called()
@@ -60,7 +60,7 @@ class TestRecommendAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = RecommendAction(prompts_dir="/tmp/prompts")
+        action = RecommendAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify investigation context was passed
@@ -97,7 +97,7 @@ class TestRecommendAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = RecommendAction(prompts_dir="/tmp/prompts")
+        action = RecommendAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify empty investigation section was passed

@@ -135,6 +135,13 @@ class BaseAction(ABC):
         Returns:
             True if response was posted, False if blocked.
         """
+        # Ensure validator is initialized
+        if self._validator is None:
+            raise RuntimeError(
+                f"Validator not initialized for {self.__class__.__name__}. "
+                "This is a configuration error."
+            )
+
         # Validate response
         validation = self._validator.validate(response, action_type)
 

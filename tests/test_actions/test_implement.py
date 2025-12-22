@@ -8,7 +8,7 @@ from alm_orchestrator.claude_executor import ClaudeResult
 
 class TestImplementAction:
     def test_allowed_issue_types(self):
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.allowed_issue_types == ["Story"]
 
     def test_execute_includes_recommendation_context(self, mocker):
@@ -40,7 +40,7 @@ class TestImplementAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify recommendation context was passed
@@ -80,7 +80,7 @@ class TestImplementAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify empty prior analysis section was passed
@@ -122,7 +122,7 @@ class TestImplementAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify rejection
@@ -171,7 +171,7 @@ class TestImplementAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         assert result == "Invalid ticket rejected for TEST-789"
@@ -179,24 +179,24 @@ class TestImplementAction:
 
     def test_is_invalid_ticket_exact_match(self):
         """Test _is_invalid_ticket with exact match."""
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action._is_invalid_ticket("INVALID TICKET") is True
 
     def test_is_invalid_ticket_with_newline(self):
         """Test _is_invalid_ticket with trailing newline."""
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action._is_invalid_ticket("INVALID TICKET\n") is True
         assert action._is_invalid_ticket("INVALID TICKET\n\n") is True
 
     def test_is_invalid_ticket_with_whitespace(self):
         """Test _is_invalid_ticket with surrounding whitespace."""
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action._is_invalid_ticket("  INVALID TICKET  ") is True
         assert action._is_invalid_ticket("\nINVALID TICKET\n") is True
 
     def test_is_invalid_ticket_false_for_normal_content(self):
         """Test _is_invalid_ticket returns False for normal implementation output."""
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action._is_invalid_ticket("Implemented the feature") is False
         assert action._is_invalid_ticket("Created new endpoint") is False
         assert action._is_invalid_ticket("This is not an INVALID TICKET") is False
@@ -211,7 +211,7 @@ class TestImplementAction:
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
-        action = ImplementAction(prompts_dir="/tmp/prompts")
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         mock_github.clone_repo.assert_not_called()

@@ -8,11 +8,11 @@ from alm_orchestrator.claude_executor import ClaudeResult
 
 class TestSecurityReviewAction:
     def test_label_property(self):
-        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.label == "ai-security-review"
 
     def test_allowed_issue_types(self):
-        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         assert action.allowed_issue_types == ["Bug", "Story"]
 
     def test_execute_rejects_invalid_issue_type(self):
@@ -26,7 +26,7 @@ class TestSecurityReviewAction:
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
-        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         mock_github.clone_repo.assert_not_called()
@@ -64,7 +64,7 @@ class TestSecurityReviewAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Verify PR info was fetched
@@ -104,7 +104,7 @@ class TestSecurityReviewAction:
         mock_github = MagicMock()
         mock_claude = MagicMock()
 
-        action = SecurityReviewAction(prompts_dir="/tmp/prompts")
+        action = SecurityReviewAction(prompts_dir="/tmp/prompts", validator=MagicMock())
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
 
         # Should post error comment and remove label
@@ -124,7 +124,7 @@ class TestSecurityReviewPRInComments:
 
     @pytest.fixture
     def action(self):
-        return SecurityReviewAction(prompts_dir="/tmp/prompts")
+        return SecurityReviewAction(prompts_dir="/tmp/prompts", validator=MagicMock())
 
     @pytest.fixture
     def mock_issue(self):

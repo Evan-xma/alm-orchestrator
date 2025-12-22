@@ -117,8 +117,8 @@ class TestDaemon:
         # Should post error comment
         mock_jira.add_comment.assert_called()
         comment = mock_jira.add_comment.call_args[0][1]
-        assert "Failed" in comment
-        assert "Action failed" in comment
+        assert "FAILED" in comment.upper()
+        assert "ai-investigate" in comment
 
         # Original label removed upfront, processing label removed in finally
         remove_calls = mock_jira.remove_label.call_args_list
