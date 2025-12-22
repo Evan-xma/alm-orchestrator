@@ -70,7 +70,16 @@ class TestCredentialDetection:
     def test_allows_safe_response(self):
         """Allows response with no credentials."""
         validator = OutputValidator()
-        response = "The bug is in user_service.py line 42"
+        response = """
+        SUMMARY
+        The bug is in user_service.py line 42
+
+        ROOT CAUSE
+        Null pointer dereference
+
+        EVIDENCE
+        Stack trace shows the issue
+        """
         result = validator.validate(response, "investigate")
 
         assert result.is_valid is True
@@ -91,7 +100,16 @@ class TestHighEntropyDetection:
     def test_allows_normal_prose(self):
         """Allows normal English text with low entropy."""
         validator = OutputValidator()
-        response = "The bug is caused by a null pointer dereference in the authentication module"
+        response = """
+        SUMMARY
+        The bug is caused by a null pointer dereference in the authentication module
+
+        ROOT CAUSE
+        Missing null check
+
+        EVIDENCE
+        Stack trace confirms
+        """
         result = validator.validate(response, "investigate")
 
         assert result.is_valid is True
@@ -99,7 +117,14 @@ class TestHighEntropyDetection:
     def test_allows_code_snippets(self):
         """Allows typical code which may have moderate entropy."""
         validator = OutputValidator()
-        response = "def calculate_total(items):\n    return sum(item.price for item in items)"
+        response = """
+        What files you changed:
+        - utils.py
+
+        What the fix does:
+        def calculate_total(items):
+            return sum(item.price for item in items)
+        """
         result = validator.validate(response, "fix")
 
         assert result.is_valid is True
@@ -107,7 +132,92 @@ class TestHighEntropyDetection:
     def test_allows_short_random_strings(self):
         """Allows short strings even if high entropy (under threshold)."""
         validator = OutputValidator()
-        response = "Use abc123 as the ID"
+        response = """
+        What files you created:
+        - models/user.py
+
+        How the feature works:
+        Use abc123 as the ID
+        """
         result = validator.validate(response, "implement")
+
+        assert result.is_valid is True
+
+
+class TestStructuralValidation:
+    def test_investigate_valid_structure(self):
+        """Validates investigate response with all required sections."""
+        validator = OutputValidator()
+        response = """
+        SUMMARY
+        The bug occurs in auth module.
+
+        ROOT CAUSE
+        Null pointer dereference on line 42.
+
+        EVIDENCE
+        Stack trace shows the crash point.
+        """
+        result = validator.validate(response, "investigate")
+
+        assert result.is_valid is True
+
+    def test_investigate_missing_section(self):
+        """Rejects investigate response missing required sections."""
+        validator = OutputValidator()
+        response = """
+        SUMMARY
+        The bug occurs in auth module.
+
+        Some other content without the required sections.
+        """
+        result = validator.validate(response, "investigate")
+
+        assert result.is_valid is False
+        assert result.failure_reason == "missing_structure"
+
+    def test_fix_valid_structure(self):
+        """Validates fix response with required sections."""
+        validator = OutputValidator()
+        response = """
+        What files you changed:
+        - auth.py
+        - utils.py
+
+        What the fix does:
+        Adds null check before dereferencing.
+        """
+        result = validator.validate(response, "fix")
+
+        assert result.is_valid is True
+
+    def test_recommend_valid_structure(self):
+        """Validates recommend response with options."""
+        validator = OutputValidator()
+        response = """
+        OPTION 1: Refactor auth module
+
+        OPTION 2: Add caching layer
+
+        RECOMMENDATION: Use option 1 for better maintainability.
+        """
+        result = validator.validate(response, "recommend")
+
+        assert result.is_valid is True
+
+    def test_case_insensitive_matching(self):
+        """Section matching is case-insensitive."""
+        validator = OutputValidator()
+        response = """
+        summary
+        Bug in auth.
+
+        root cause
+        Null pointer.
+
+        evidence
+        Stack trace.
+        """
+        result = validator.validate(response, "investigate")
 
         assert result.is_valid is True
