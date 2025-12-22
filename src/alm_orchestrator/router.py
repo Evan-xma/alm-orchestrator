@@ -1,6 +1,6 @@
 """Label-to-action routing for the ALM Orchestrator."""
 
-from typing import Dict, List
+from typing import Any, Dict, List
 from alm_orchestrator.actions.base import BaseAction
 
 
@@ -71,14 +71,15 @@ class LabelRouter:
         return [type(action).__name__ for action in self._actions.values()]
 
 
-def discover_actions(prompts_dir: str) -> LabelRouter:
+def discover_actions(prompts_dir: str, validator: Any = None) -> LabelRouter:
     """Auto-discover and register all action handlers.
 
     Scans the actions package for BaseAction subclasses,
-    instantiates each with prompts_dir, and registers them.
+    instantiates each with prompts_dir and validator, and registers them.
 
     Args:
         prompts_dir: Path to prompt templates directory.
+        validator: Optional OutputValidator instance for response validation.
 
     Returns:
         LabelRouter with all discovered actions registered.
@@ -102,7 +103,7 @@ def discover_actions(prompts_dir: str) -> LabelRouter:
             if (isinstance(obj, type) and
                 issubclass(obj, BaseAction) and
                 obj is not BaseAction):
-                action = obj(prompts_dir)
+                action = obj(prompts_dir, validator=validator)
                 router.register(action.label, action)
 
     return router

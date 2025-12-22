@@ -8,6 +8,7 @@ from alm_orchestrator.config import Config
 from alm_orchestrator.jira_client import JiraClient
 from alm_orchestrator.github_client import GitHubClient
 from alm_orchestrator.claude_executor import ClaudeExecutor
+from alm_orchestrator.output_validator import OutputValidator
 from alm_orchestrator.router import discover_actions
 
 
@@ -36,8 +37,11 @@ class Daemon:
             timeout_seconds=config.claude_timeout_seconds
         )
 
+        # Initialize output validator
+        self._validator = OutputValidator()
+
         # Auto-discover and register all actions
-        self._router = discover_actions(prompts_dir)
+        self._router = discover_actions(prompts_dir, validator=self._validator)
         logger.info(f"Discovered {self._router.action_count} action(s): {', '.join(self._router.action_names)}")
 
         # Setup signal handlers

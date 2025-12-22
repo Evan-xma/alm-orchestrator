@@ -1,9 +1,10 @@
 """Tests for label router and action interface."""
 
 import pytest
-from unittest.mock import MagicMock
-from alm_orchestrator.router import LabelRouter, UnknownLabelError
+from unittest.mock import MagicMock, patch
+from alm_orchestrator.router import LabelRouter, UnknownLabelError, discover_actions
 from alm_orchestrator.actions.base import BaseAction
+from alm_orchestrator.output_validator import OutputValidator
 
 
 class MockAction(BaseAction):
@@ -99,3 +100,25 @@ class TestBaseAction:
         path = action.get_template_path()
 
         assert path == "/tmp/prompts/code-review.md"
+
+
+class TestDiscoverActionsWithValidator:
+    def test_validator_passed_to_actions(self):
+        """Actions are instantiated with validator."""
+        validator = OutputValidator()
+
+        # Use the real discover_actions with actual actions
+        # This is an integration test that verifies the validator is passed through
+        router = discover_actions("/tmp/prompts", validator=validator)
+
+        # Get one of the real actions and verify it has a validator
+        # We know at least one action exists in the actions directory
+        assert router.action_count > 0
+
+        # Get the first action and check it has the validator
+        first_label = list(router._actions.keys())[0]
+        first_action = router.get_action(first_label)
+
+        # Verify the action has a validator attribute and it's the one we passed
+        assert hasattr(first_action, '_validator')
+        assert first_action._validator is validator

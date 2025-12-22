@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from alm_orchestrator.daemon import Daemon
 from alm_orchestrator.config import Config
+from alm_orchestrator.output_validator import OutputValidator
 
 
 @pytest.fixture
@@ -146,3 +147,28 @@ class TestDaemon:
         daemon.run()
 
         assert daemon._running is False
+
+
+class TestDaemonValidatorIntegration:
+    def test_daemon_creates_validator(self):
+        """Daemon instantiates OutputValidator on init."""
+        config = MagicMock()
+        config.claude_timeout_seconds = 600
+
+        with patch('alm_orchestrator.daemon.JiraClient'), \
+             patch('alm_orchestrator.daemon.GitHubClient'), \
+             patch('alm_orchestrator.daemon.ClaudeExecutor'), \
+             patch('alm_orchestrator.daemon.discover_actions') as mock_discover:
+
+            mock_router = MagicMock()
+            mock_router.action_count = 1
+            mock_router.action_names = ["TestAction"]
+            mock_discover.return_value = mock_router
+
+            daemon = Daemon(config, prompts_dir="/tmp/prompts")
+
+            # Verify validator was created and passed to discover_actions
+            mock_discover.assert_called_once()
+            call_kwargs = mock_discover.call_args[1]
+            assert 'validator' in call_kwargs
+            assert isinstance(call_kwargs['validator'], OutputValidator)
