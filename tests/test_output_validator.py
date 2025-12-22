@@ -75,3 +75,39 @@ class TestCredentialDetection:
 
         assert result.is_valid is True
         assert result.failure_reason == ""
+
+
+class TestHighEntropyDetection:
+    def test_detects_high_entropy_string(self):
+        """Detects suspicious high-entropy random-looking string."""
+        validator = OutputValidator()
+        # High entropy: mixed case, numbers, symbols, 25+ chars
+        response = "Found token: aB3$xZ9!mK7@pL2&qR5#wT8"
+        result = validator.validate(response, "investigate")
+
+        assert result.is_valid is False
+        assert result.failure_reason == "high_entropy_string"
+
+    def test_allows_normal_prose(self):
+        """Allows normal English text with low entropy."""
+        validator = OutputValidator()
+        response = "The bug is caused by a null pointer dereference in the authentication module"
+        result = validator.validate(response, "investigate")
+
+        assert result.is_valid is True
+
+    def test_allows_code_snippets(self):
+        """Allows typical code which may have moderate entropy."""
+        validator = OutputValidator()
+        response = "def calculate_total(items):\n    return sum(item.price for item in items)"
+        result = validator.validate(response, "fix")
+
+        assert result.is_valid is True
+
+    def test_allows_short_random_strings(self):
+        """Allows short strings even if high entropy (under threshold)."""
+        validator = OutputValidator()
+        response = "Use abc123 as the ID"
+        result = validator.validate(response, "implement")
+
+        assert result.is_valid is True

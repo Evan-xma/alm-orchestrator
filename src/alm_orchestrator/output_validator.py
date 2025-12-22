@@ -68,6 +68,10 @@ class OutputValidator:
         if has_creds:
             return ValidationResult(is_valid=False, failure_reason=reason)
 
+        # Check for high-entropy strings
+        if self._has_high_entropy_strings(response):
+            return ValidationResult(is_valid=False, failure_reason="high_entropy_string")
+
         return ValidationResult(is_valid=True, failure_reason="")
 
     def _has_credentials(self, response: str) -> Tuple[bool, str]:
@@ -84,3 +88,55 @@ class OutputValidator:
                 return (True, "credential_detected")
 
         return (False, "")
+
+    def _has_high_entropy_strings(self, response: str) -> bool:
+        """Check for suspicious random-looking strings.
+
+        Args:
+            response: The response text to check.
+
+        Returns:
+            True if high-entropy strings found that may be leaked secrets.
+        """
+        # Split into words, check each for high entropy
+        words = re.findall(r'\S+', response)
+
+        for word in words:
+            # Skip short strings
+            if len(word) < self._min_entropy_length:
+                continue
+
+            # Calculate Shannon entropy
+            entropy = self._calculate_entropy(word)
+
+            # Flag if entropy is suspiciously high
+            if entropy > self._entropy_threshold:
+                return True
+
+        return False
+
+    def _calculate_entropy(self, s: str) -> float:
+        """Calculate Shannon entropy of a string.
+
+        Args:
+            s: The string to analyze.
+
+        Returns:
+            Shannon entropy value.
+        """
+        if not s:
+            return 0.0
+
+        # Count character frequencies
+        char_counts: Dict[str, int] = {}
+        for char in s:
+            char_counts[char] = char_counts.get(char, 0) + 1
+
+        # Calculate entropy
+        length = len(s)
+        entropy = 0.0
+        for count in char_counts.values():
+            probability = count / length
+            entropy -= probability * math.log2(probability)
+
+        return entropy
