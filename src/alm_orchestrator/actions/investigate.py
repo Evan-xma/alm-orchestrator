@@ -54,18 +54,28 @@ class InvestigateAction(BaseAction):
                 action="investigate",
             )
 
-            # Post findings as Jira comment
+            # Format response with cost footer
             header = "INVESTIGATION RESULTS"
-            comment = (
+            response = (
                 f"{header}\n{'=' * len(header)}\n\n{result.content}"
                 f"\n\n---\n_Cost: ${result.cost_usd:.4f}_"
             )
-            jira_client.add_comment(issue_key, comment)
 
-            # Remove the label to mark as processed
+            # Validate and post (or block if suspicious)
+            posted = self._validate_and_post(
+                issue_key=issue_key,
+                response=response,
+                action_type="investigate",
+                jira_client=jira_client
+            )
+
+            # Always remove the label to mark as processed (even if blocked)
             jira_client.remove_label(issue_key, self.label)
 
-            return f"Investigation complete for {issue_key}"
+            if posted:
+                return f"Investigation complete for {issue_key}"
+            else:
+                return f"Investigation response blocked for {issue_key}"
 
         finally:
             # Always cleanup

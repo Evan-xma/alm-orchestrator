@@ -1,9 +1,10 @@
 """Tests for investigate action handler."""
 
 import pytest
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch, ANY
 from alm_orchestrator.actions.investigate import InvestigateAction
 from alm_orchestrator.claude_executor import ClaudeResult
+from alm_orchestrator.output_validator import OutputValidator, ValidationResult
 
 
 class TestInvestigateAction:
@@ -113,3 +114,79 @@ class TestInvestigateAction:
 
         # Cleanup should still happen
         mock_github.cleanup.assert_called_once_with("/tmp/work-dir")
+
+
+class TestInvestigateWithValidator:
+    def test_uses_validator_when_available(self):
+        """InvestigateAction uses _validate_and_post when validator present."""
+        mock_jira = MagicMock()
+        mock_github = MagicMock()
+        mock_executor = MagicMock()
+        mock_validator = MagicMock()
+
+        mock_issue = MagicMock()
+        mock_issue.key = "BUG-123"
+        mock_issue.fields.summary = "Test bug"
+        mock_issue.fields.description = "Description"
+        mock_issue.fields.issuetype.name = "Bug"
+
+        mock_github.clone_repo.return_value = "/tmp/test"
+
+        mock_result = MagicMock()
+        mock_result.content = "Investigation results"
+        mock_result.cost_usd = 0.05
+        mock_executor.execute_with_template.return_value = mock_result
+
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=True,
+            failure_reason=""
+        )
+
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=mock_validator)
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_executor)
+
+        # Verify validator was used
+        mock_validator.validate.assert_called_once()
+
+        # Verify comment was posted (validation passed)
+        assert mock_jira.add_comment.call_count == 1
+
+    def test_blocks_response_when_validation_fails(self):
+        """InvestigateAction blocks response when validator rejects it."""
+        mock_jira = MagicMock()
+        mock_github = MagicMock()
+        mock_executor = MagicMock()
+        mock_validator = MagicMock()
+
+        mock_issue = MagicMock()
+        mock_issue.key = "BUG-456"
+        mock_issue.fields.summary = "Test bug"
+        mock_issue.fields.description = "Description"
+        mock_issue.fields.issuetype.name = "Bug"
+
+        mock_github.clone_repo.return_value = "/tmp/test"
+
+        mock_result = MagicMock()
+        mock_result.content = "Found key: AKIAIOSFODNN7EXAMPLE"
+        mock_result.cost_usd = 0.05
+        mock_executor.execute_with_template.return_value = mock_result
+
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=False,
+            failure_reason="credential_detected"
+        )
+
+        action = InvestigateAction(prompts_dir="/tmp/prompts", validator=mock_validator)
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_executor)
+
+        # Verify validation was attempted
+        mock_validator.validate.assert_called_once_with(
+            ANY,  # The formatted response
+            "investigate"
+        )
+
+        # Verify blocked comment was posted (not the actual response)
+        assert mock_jira.add_comment.call_count == 1
+        call_args = mock_jira.add_comment.call_args[0]
+        assert "AI RESPONSE BLOCKED" in call_args[1]
+        assert "AKIAIOSFODNN7EXAMPLE" not in call_args[1]
