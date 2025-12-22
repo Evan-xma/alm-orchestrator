@@ -75,15 +75,28 @@ class RecommendAction(BaseAction):
                 action="recommend",
             )
 
+            # Format response with cost footer
             header = "RECOMMENDATIONS"
-            comment = (
+            response = (
                 f"{header}\n{'=' * len(header)}\n\n{result.content}"
                 f"\n\n---\n_Cost: ${result.cost_usd:.4f}_"
             )
-            jira_client.add_comment(issue_key, comment)
+
+            # Validate and post
+            posted = self._validate_and_post(
+                issue_key=issue_key,
+                response=response,
+                action_type="recommend",
+                jira_client=jira_client
+            )
+
+            # Always remove the label to mark as processed (even if blocked)
             jira_client.remove_label(issue_key, self.label)
 
-            return f"Recommendations posted for {issue_key}"
+            if posted:
+                return f"Recommendations complete for {issue_key}"
+            else:
+                return f"Recommendations response blocked for {issue_key}"
 
         finally:
             github_client.cleanup(work_dir)
