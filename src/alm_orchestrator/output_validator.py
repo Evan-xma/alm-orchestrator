@@ -37,18 +37,6 @@ CREDENTIAL_PATTERNS = [
 ]
 
 
-# Section requirements by action type
-SECTION_REQUIREMENTS = {
-    "investigate": ["SUMMARY", "ROOT CAUSE", "EVIDENCE"],
-    "impact": ["FILES THAT WOULD CHANGE", "RISK ASSESSMENT"],
-    "recommend": ["OPTION 1", "RECOMMENDATION"],
-    "fix": ["What files you changed", "What the fix does"],
-    "implement": ["What files you created", "How the feature works"],
-    "code_review": ["SUMMARY", "HIGH PRIORITY", "LOW PRIORITY"],
-    "security_review": ["SUMMARY", "HIGH PRIORITY FINDINGS"],
-}
-
-
 class OutputValidator:
     """Validates Claude's responses before posting to Jira/GitHub."""
 
@@ -64,10 +52,9 @@ class OutputValidator:
         self._credential_patterns: List[Pattern] = [
             re.compile(pattern) for pattern in CREDENTIAL_PATTERNS
         ]
-        self._section_requirements: Dict[str, List[str]] = SECTION_REQUIREMENTS
 
     def validate(self, response: str, action: str) -> ValidationResult:
-        """Check response for secrets and expected structure.
+        """Check response for secrets.
 
         Args:
             response: Claude's response text.
@@ -84,10 +71,6 @@ class OutputValidator:
         # Check for high-entropy strings
         if self._has_high_entropy_strings(response):
             return ValidationResult(is_valid=False, failure_reason="high_entropy_string")
-
-        # Check for expected structure
-        if not self._has_expected_structure(response, action):
-            return ValidationResult(is_valid=False, failure_reason="missing_structure")
 
         return ValidationResult(is_valid=True, failure_reason="")
 
@@ -157,29 +140,3 @@ class OutputValidator:
             entropy -= probability * math.log2(probability)
 
         return entropy
-
-    def _has_expected_structure(self, response: str, action: str) -> bool:
-        """Check if expected section headers are present.
-
-        Args:
-            response: The response text to check.
-            action: The action type (determines required sections).
-
-        Returns:
-            True if all required sections found (or no requirements defined).
-        """
-        # Get required sections for this action
-        required_sections = self._section_requirements.get(action, [])
-
-        # No requirements means pass
-        if not required_sections:
-            return True
-
-        # Case-insensitive substring matching
-        response_lower = response.lower()
-
-        for section in required_sections:
-            if section.lower() not in response_lower:
-                return False
-
-        return True
