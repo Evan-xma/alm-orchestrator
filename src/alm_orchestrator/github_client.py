@@ -4,6 +4,7 @@ import logging
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime
 from github import Github
 from alm_orchestrator.config import Config
 
@@ -14,6 +15,20 @@ logger = logging.getLogger(__name__)
 DEFAULT_BRANCH = "main"
 CLONE_DEPTH = 1
 TEMP_DIR_PREFIX = "alm-orchestrator-"
+
+
+def generate_branch_name(prefix: str, issue_key: str) -> str:
+    """Generate a timestamped branch name.
+
+    Args:
+        prefix: Branch prefix (e.g., "fix-", "feat-").
+        issue_key: Jira issue key (e.g., "RCPAPI-1").
+
+    Returns:
+        Branch name like "fix-rcpapi-1-20251223-0158".
+    """
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M")
+    return f"{prefix}{issue_key.lower()}-{timestamp}"
 
 
 class GitHubClient:

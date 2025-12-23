@@ -3,6 +3,7 @@
 import logging
 import os
 from alm_orchestrator.actions.base import BaseAction
+from alm_orchestrator.github_client import generate_branch_name
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class FixAction(BaseAction):
 
         # Clone and create branch
         work_dir = github_client.clone_repo()
-        branch_name = f"{BRANCH_PREFIX_FIX}{issue_key.lower()}"
+        branch_name = generate_branch_name(BRANCH_PREFIX_FIX, issue_key)
 
         try:
             github_client.create_branch(work_dir, branch_name)

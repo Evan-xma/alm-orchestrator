@@ -2,7 +2,7 @@ import os
 import tempfile
 import pytest
 from unittest.mock import MagicMock
-from alm_orchestrator.github_client import GitHubClient
+from alm_orchestrator.github_client import GitHubClient, generate_branch_name
 from alm_orchestrator.config import Config
 
 
@@ -188,3 +188,31 @@ class TestGitHubClientPR:
         assert pr_info["title"] == "Add user authentication"
         assert pr_info["body"] == "This PR adds OAuth2 authentication to the API."
         mock_repo.get_pull.assert_called_once_with(42)
+
+
+class TestGenerateBranchName:
+    def test_generates_timestamped_branch_name(self):
+        """Branch name includes prefix, issue key, and timestamp."""
+        branch = generate_branch_name("fix-", "RCPAPI-1")
+
+        assert branch.startswith("fix-rcpapi-1-")
+        # Should have format: fix-rcpapi-1-YYYYMMDD-HHMM
+        parts = branch.split("-")
+        assert len(parts) == 5  # fix, rcpapi, 1, YYYYMMDD, HHMM
+        assert len(parts[3]) == 8  # YYYYMMDD
+        assert len(parts[4]) == 4  # HHMM
+
+    def test_lowercases_issue_key(self):
+        """Issue key is lowercased in branch name."""
+        branch = generate_branch_name("feature-", "TEST-123")
+
+        assert "test-123" in branch
+        assert "TEST-123" not in branch
+
+    def test_different_prefixes(self):
+        """Works with different branch prefixes."""
+        fix_branch = generate_branch_name("fix-", "BUG-1")
+        feat_branch = generate_branch_name("feature-", "STORY-1")
+
+        assert fix_branch.startswith("fix-bug-1-")
+        assert feat_branch.startswith("feature-story-1-")
