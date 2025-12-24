@@ -158,9 +158,13 @@ class ClaudeExecutor:
                     f"Details: {denials}"
                 )
 
+            # Extract cost from metadata if available, fallback to top-level
+            metadata = data.get("metadata", {})
+            cost_usd = metadata.get("cost_usd") or data.get("cost_usd", 0.0)
+
             return ClaudeResult(
                 content=data.get("result", ""),
-                cost_usd=data.get("cost_usd", 0.0),
+                cost_usd=cost_usd,
                 duration_ms=data.get("duration_ms", 0),
                 session_id=data.get("session_id", ""),
                 permission_denials=denials,
@@ -256,11 +260,15 @@ class ClaudeExecutor:
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         log_file = self._logs_dir / f"ccout-{issue_key}-{timestamp}.txt"
 
-        # Try to extract Claude's response from JSON
+        # Try to extract Claude's response and cost from JSON
         claude_response = None
+        extracted_cost = None
         try:
             data = json.loads(stdout)
             claude_response = data.get("result", "")
+            # Extract cost from metadata or top-level
+            metadata = data.get("metadata", {})
+            extracted_cost = metadata.get("cost_usd") or data.get("cost_usd")
         except (json.JSONDecodeError, AttributeError):
             pass
 
@@ -274,6 +282,8 @@ class ClaudeExecutor:
             f.write(f"Timestamp: {timestamp}\n")
             f.write(f"Duration: {elapsed:.2f}s\n")
             f.write(f"Return Code: {returncode}\n")
+            if extracted_cost is not None:
+                f.write(f"Cost: ${extracted_cost:.4f}\n")
             f.write("\n" + "=" * 80 + "\n")
             f.write("PROMPT\n")
             f.write("=" * 80 + "\n")
