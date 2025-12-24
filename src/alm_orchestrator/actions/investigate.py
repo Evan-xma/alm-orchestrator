@@ -52,6 +52,7 @@ class InvestigateAction(BaseAction):
                     "issue_description": description,
                 },
                 action="investigate",
+                issue_key=issue_key
             )
 
             # Format response with cost footer

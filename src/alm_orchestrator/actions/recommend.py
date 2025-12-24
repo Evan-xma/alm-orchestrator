@@ -73,6 +73,7 @@ class RecommendAction(BaseAction):
                     "investigation_section": investigation_section,
                 },
                 action="recommend",
+                issue_key=issue_key
             )
 
             # Format response with cost footer

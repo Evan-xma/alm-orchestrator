@@ -68,6 +68,7 @@ class FixAction(BaseAction):
                     "prior_analysis_section": prior_analysis_section,
                 },
                 action="fix",
+                issue_key=issue_key
             )
 
             # Commit and push changes

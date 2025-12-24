@@ -29,9 +29,10 @@ pytest tests/test_router.py::TestLabelRouter::test_action_count -v
 python main.py
 
 # Run with options
-python main.py --dry-run        # Poll once without processing
+python main.py --dry-run              # Poll once without processing
 python main.py --poll-interval 10
-python main.py -v               # Verbose logging
+python main.py -v                     # Verbose logging
+python main.py --log-claude-output    # Log Claude execution details to logs/ccout-{IssueKey}-{timestamp}.txt
 ```
 
 ## Architecture

@@ -1,1 +1,1 @@
-source .venv/bin/activate && python main.py --verbose
+source .venv/bin/activate && python main.py --verbose "$@"

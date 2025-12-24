@@ -18,23 +18,26 @@ logger = logging.getLogger(__name__)
 class Daemon:
     """Long-running daemon that polls Jira and processes AI labels."""
 
-    def __init__(self, config: Config, prompts_dir: str):
+    def __init__(self, config: Config, prompts_dir: str, log_claude_output: bool = False):
         """Initialize the daemon.
 
         Args:
             config: Application configuration.
             prompts_dir: Path to prompt templates directory.
+            log_claude_output: If True, log Claude Code execution details to files.
         """
         self._config = config
         self._prompts_dir = prompts_dir
         self._running = False
+        self._log_claude_output = log_claude_output
 
         # Initialize clients
         self._jira = JiraClient(config)
         self._github = GitHubClient(config)
         self._claude = ClaudeExecutor(
             prompts_dir=prompts_dir,
-            timeout_seconds=config.claude_timeout_seconds
+            timeout_seconds=config.claude_timeout_seconds,
+            log_output=self._log_claude_output
         )
 
         # Initialize output validator

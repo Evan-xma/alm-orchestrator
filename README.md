@@ -113,6 +113,9 @@ python main.py --dry-run
 
 # Verbose logging
 python main.py -v
+
+# Log Claude Code execution details (for debugging/testing)
+python main.py --log-claude-output
 ```
 
 ### CLI Options
@@ -124,6 +127,7 @@ python main.py -v
 | `-v, --verbose` | Enable debug logging |
 | `--env-file` | Path to .env file (default: `.env`) |
 | `--logs-dir` | Directory for log files (default: `logs`) |
+| `--log-claude-output` | Log detailed Claude Code execution to `logs/ccout-{IssueKey}-{timestamp}.txt` |
 
 ## Adding New Actions
 

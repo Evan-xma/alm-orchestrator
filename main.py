@@ -112,6 +112,11 @@ def main() -> int:
         default=DEFAULT_LOGS_DIR,
         help=f"Directory for log files (default: {DEFAULT_LOGS_DIR})",
     )
+    parser.add_argument(
+        "--log-claude-output",
+        action="store_true",
+        help="Log Claude Code execution details to logs/ccout-{IssueKey}-{timestamp}.txt",
+    )
 
     args = parser.parse_args()
 
@@ -140,7 +145,7 @@ def main() -> int:
 
     logger.info(f"Using prompts from: {prompts_dir}")
 
-    daemon = Daemon(config, prompts_dir)
+    daemon = Daemon(config, prompts_dir, log_claude_output=args.log_claude_output)
 
     if args.dry_run:
         logger.info("Dry run mode - polling once")

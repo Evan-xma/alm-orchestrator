@@ -83,6 +83,7 @@ class SecurityReviewAction(BaseAction):
                     "pr_description": pr_info["body"],
                 },
                 action="security_review",
+                issue_key=issue_key
             )
 
             # Format the review response

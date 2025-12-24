@@ -50,6 +50,7 @@ class ImpactAction(BaseAction):
                     "issue_description": description,
                 },
                 action="impact",
+                issue_key=issue_key
             )
 
             # Format response with cost footer

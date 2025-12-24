@@ -68,6 +68,7 @@ class ImplementAction(BaseAction):
                     "prior_analysis_section": prior_analysis_section,
                 },
                 action="implement",
+                issue_key=issue_key
             )
 
             # Check if Claude rejected the ticket as invalid/unsafe
