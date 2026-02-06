@@ -32,12 +32,12 @@ class ClaudeResult:
 class ClaudeExecutor:
     """Executes Claude Code CLI commands in headless mode."""
 
+    CLAUDE_LOGS_DIR = "claude-logs"
+
     def __init__(
         self,
         prompts_dir: str,
         timeout_seconds: Optional[int] = None,
-        log_output: bool = False,
-        logs_dir: str = "logs"
     ):
         """Initialize the executor.
 
@@ -45,13 +45,10 @@ class ClaudeExecutor:
             prompts_dir: Path to prompts directory containing {action}.json settings files.
             timeout_seconds: Maximum time to wait for Claude Code to complete.
                            Defaults to 600 seconds (10 minutes).
-            log_output: If True, log execution details to files.
-            logs_dir: Directory for log files.
         """
         self._prompts_dir = Path(prompts_dir)
         self._timeout = timeout_seconds or DEFAULT_CLAUDE_TIMEOUT_SECONDS
-        self._log_output = log_output
-        self._logs_dir = Path(logs_dir)
+        self._logs_dir = Path(self.CLAUDE_LOGS_DIR)
 
     def _install_sandbox_settings(self, work_dir: str, action: str) -> None:
         """Install sandbox settings for an action to the working directory.
@@ -128,8 +125,8 @@ class ClaudeExecutor:
             elapsed = time.monotonic() - start_time
             logger.info(f"Claude Code CLI completed in {elapsed:.1f}s")
 
-        # Optionally log execution details
-        if self._log_output and issue_key:
+        # Always log execution details for audit trail
+        if issue_key:
             self._log_execution_details(
                 issue_key=issue_key,
                 action=action,
@@ -258,7 +255,7 @@ class ClaudeExecutor:
 
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        log_file = self._logs_dir / f"ccout-{issue_key}-{timestamp}.txt"
+        log_file = self._logs_dir / f"{issue_key}-{action}-{timestamp}.txt"
 
         # Try to extract Claude's response and cost from JSON
         claude_response = None

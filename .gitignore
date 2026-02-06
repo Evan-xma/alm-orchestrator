@@ -38,6 +38,7 @@ ENV/
 
 # Logs
 logs/
+claude-logs/
 *.log
 
 # Testing

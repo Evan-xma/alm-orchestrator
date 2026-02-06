@@ -32,7 +32,7 @@ python main.py
 python main.py --dry-run              # Poll once without processing
 python main.py --poll-interval 10
 python main.py -v                     # Verbose logging
-python main.py --log-claude-output    # Log Claude execution details to logs/ccout-{IssueKey}-{timestamp}.txt
+python main.py                        # Claude inputs/outputs always logged to claude-logs/
 ```
 
 No linting or formatting tools are configured (no ruff, black, flake8, mypy, or pre-commit).
@@ -143,7 +143,7 @@ Environment variables loaded from `.env` and validated in `config.py`. See `.env
 - CSV format: `asctime,levelname,name,message`
 - Console + file logging (file at DEBUG, console configurable)
 - File logs: `logs/run-{YYYYMMDD-HHMMSS}.log`
-- Claude execution logs: `logs/ccout-{IssueKey}-{timestamp}.txt` (with `--log-claude-output`)
+- Claude execution logs: `claude-logs/{IssueKey}-{action}-{timestamp}.txt` (always-on, captures prompts + responses)
 
 ### Testing Patterns
 
