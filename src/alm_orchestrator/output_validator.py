@@ -31,8 +31,11 @@ CREDENTIAL_PATTERNS = [
     # Generic API keys / tokens (quotes required around value)
     r"(?i)(api[_-]?key|apikey|secret[_-]?key|access[_-]?token)['\"]?\s*[:=]\s*['\"][a-zA-Z0-9_\-]{20,}['\"]",
 
-    # Secret keyword matching (YAML/JSON/env - no quotes required)
-    r"(?i)(password|secret|token|credential|api_key|apikey|secret_key|private_key)['\"]?\s*[:=]\s*['\"]?[^\s,'\"\}]{8,}",
+    # Secret keyword with quoted value (JSON/YAML config files)
+    r"""(?i)(password|secret|token|credential|api_key|apikey|secret_key|private_key)['\"]?\s*[:=]\s*['"][^\s'"]{8,}['"]""",
+
+    # Environment variable assignments (unquoted, requires = not :)
+    r"(?i)(PASSWORD|SECRET|TOKEN|CREDENTIAL|API_KEY)\s*=\s*[^\s'\"]{8,}",
 
     # Connection strings with embedded credentials
     r"://[^/\s]+:[^/\s]+@[^/\s]+",

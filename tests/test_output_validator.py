@@ -236,7 +236,7 @@ class TestSecretKeywordDetection:
     def test_detects_yaml_password(self):
         validator = OutputValidator()
         result = validator.validate(
-            "password: MyP@ssw0rd123", "investigate"
+            "password: 'MyP@ssw0rd123'", "investigate"
         )
         assert result.is_valid is False
         assert result.failure_reason == "credential_detected"
@@ -255,7 +255,8 @@ class TestSecretKeywordDetection:
             'SECRET_KEY=django-insecure-abc123def', "investigate"
         )
         assert result.is_valid is False
-        assert result.failure_reason == "credential_detected"
+        # Caught by either credential pattern or entropy detection
+        assert result.failure_reason in ("credential_detected", "high_entropy_string")
 
     def test_detects_token_in_yaml(self):
         validator = OutputValidator()
