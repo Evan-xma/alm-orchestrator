@@ -117,6 +117,28 @@ class BaseAction(ABC):
 
         return False
 
+    def validate_pr_content(self, title: str, body: str):
+        """Validate PR title and body before creation.
+
+        Args:
+            title: The PR title text.
+            body: The PR body text.
+
+        Returns:
+            ValidationResult indicating if PR content is safe to post.
+        """
+        if self._validator is None:
+            raise RuntimeError(
+                f"Validator not initialized for {self.__class__.__name__}. "
+                "This is a configuration error."
+            )
+
+        title_result = self._validator.validate(title, "pr_title")
+        if not title_result.is_valid:
+            return title_result
+        body_result = self._validator.validate(body, "pr_body")
+        return body_result
+
     def _validate_and_post(
         self,
         issue_key: str,

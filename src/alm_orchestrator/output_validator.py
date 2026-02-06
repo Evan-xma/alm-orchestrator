@@ -22,25 +22,44 @@ CREDENTIAL_PATTERNS = [
     r"AKIA[0-9A-Z]{16}",  # AWS Access Key ID
     r"(?i)aws.{0,20}secret.{0,20}['\"][0-9a-zA-Z/+]{40}['\"]",
 
-    # Private keys
-    r"-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
-    r"-----BEGIN PGP PRIVATE KEY BLOCK-----",
+    # Private keys (catches all formats: RSA, EC, DSA, OPENSSH, ENCRYPTED, PGP, generic)
+    r"-----BEGIN\s+(?:[\w\s]+)?PRIVATE KEY(?:\s+BLOCK)?-----",
 
     # JWTs
     r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*",
 
-    # Generic API keys / tokens
+    # Generic API keys / tokens (quotes required around value)
     r"(?i)(api[_-]?key|apikey|secret[_-]?key|access[_-]?token)['\"]?\s*[:=]\s*['\"][a-zA-Z0-9_\-]{20,}['\"]",
 
-    # Environment variable assignments
-    r"(?i)(PASSWORD|SECRET|TOKEN|CREDENTIAL|API_KEY)\s*=\s*['\"]?[^\s'\"]{8,}",
+    # Secret keyword matching (YAML/JSON/env - no quotes required)
+    r"(?i)(password|secret|token|credential|api_key|apikey|secret_key|private_key)['\"]?\s*[:=]\s*['\"]?[^\s,'\"\}]{8,}",
+
+    # Connection strings with embedded credentials
+    r"://[^/\s]+:[^/\s]+@[^/\s]+",
+
+    # Webhook URLs
+    r"hooks\.slack\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/",
+    r"discord(?:app)?\.com/api/webhooks/\d+/[A-Za-z0-9_-]+",
+
+    # Vendor-specific key prefixes
+    r"ghp_[A-Za-z0-9]{36}",            # GitHub PAT
+    r"gho_[A-Za-z0-9]{36}",            # GitHub OAuth
+    r"github_pat_[A-Za-z0-9_]{22,}",   # GitHub fine-grained PAT
+    r"sk-ant-[A-Za-z0-9_-]{20,}",      # Anthropic
+    r"sk-proj-[A-Za-z0-9_-]{20,}",     # OpenAI project key
+    r"xox[bpas]-[A-Za-z0-9-]+",        # Slack tokens
+    r"SG\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+",  # SendGrid
+    r"sk_live_[A-Za-z0-9]{20,}",       # Stripe secret
+    r"rk_live_[A-Za-z0-9]{20,}",       # Stripe restricted
+    r"pk_live_[A-Za-z0-9]{20,}",       # Stripe publishable
+    r"whsec_[A-Za-z0-9]{20,}",         # Stripe webhook secret
 ]
 
 
 class OutputValidator:
     """Validates Claude's responses before posting to Jira/GitHub."""
 
-    def __init__(self, entropy_threshold: float = 4.5, min_entropy_length: int = 20):
+    def __init__(self, entropy_threshold: float = 4.5, min_entropy_length: int = 16):
         """Initialize the validator with credential patterns.
 
         Args:

@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock
 from alm_orchestrator.actions.implement import ImplementAction
 from alm_orchestrator.claude_executor import ClaudeResult
+from alm_orchestrator.output_validator import ValidationResult
 
 
 class TestImplementAction:
@@ -219,3 +220,98 @@ class TestImplementAction:
         mock_jira.add_comment.assert_called_once()
         assert "INVALID ISSUE TYPE" in mock_jira.add_comment.call_args[0][1]
         assert "Rejected" in result
+
+    def test_pr_blocked_when_response_contains_secret(self, mocker):
+        """PR is not created when validator detects secrets in PR content."""
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.summary = "Add dashboard"
+        mock_issue.fields.description = "Include token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig in response"
+        mock_issue.fields.issuetype.name = "Story"
+
+        mock_jira = MagicMock()
+        mock_jira.get_recommendation_comment.return_value = None
+
+        mock_github = MagicMock()
+        mock_github.clone_repo.return_value = "/tmp/work-dir"
+
+        mock_result = ClaudeResult(
+            content="Implemented the dashboard feature",
+            cost_usd=0.05,
+            duration_ms=5000,
+            session_id="test-session"
+        )
+        mock_claude = MagicMock()
+        mock_claude.execute_with_template.return_value = mock_result
+
+        # Validator rejects (secret in issue description flows into PR body)
+        mock_validator = MagicMock()
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=False, failure_reason="credential_detected"
+        )
+
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=mock_validator)
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # PR must NOT be created
+        mock_github.create_pull_request.assert_not_called()
+
+        # Branch should still be pushed
+        mock_github.commit_and_push.assert_called_once()
+
+        # Failure comment posted to Jira
+        mock_jira.add_comment.assert_called_once()
+        comment = mock_jira.add_comment.call_args[0][1]
+        assert "ACTION FAILED" in comment
+        assert "security checks" in comment
+
+        # Label removed
+        mock_jira.remove_label.assert_called_once_with("TEST-123", "ai-implement")
+
+        # Return value indicates blocking
+        assert "blocked" in result.lower()
+
+        # Cleanup still happens
+        mock_github.cleanup.assert_called_once_with("/tmp/work-dir")
+
+    def test_pr_created_when_validation_passes(self, mocker):
+        """PR is created normally when validator approves content."""
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.summary = "Add dashboard"
+        mock_issue.fields.description = "Create a user dashboard"
+        mock_issue.fields.issuetype.name = "Story"
+
+        mock_jira = MagicMock()
+        mock_jira.get_recommendation_comment.return_value = None
+
+        mock_pr = MagicMock()
+        mock_pr.html_url = "https://github.com/org/repo/pull/42"
+
+        mock_github = MagicMock()
+        mock_github.clone_repo.return_value = "/tmp/work-dir"
+        mock_github.create_pull_request.return_value = mock_pr
+
+        mock_result = ClaudeResult(
+            content="Implemented the dashboard",
+            cost_usd=0.05,
+            duration_ms=5000,
+            session_id="test-session"
+        )
+        mock_claude = MagicMock()
+        mock_claude.execute_with_template.return_value = mock_result
+
+        # Validator approves everything
+        mock_validator = MagicMock()
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=True, failure_reason=""
+        )
+
+        action = ImplementAction(prompts_dir="/tmp/prompts", validator=mock_validator)
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # PR should be created
+        mock_github.create_pull_request.assert_called_once()
+
+        # Result should indicate success
+        assert "pull/42" in result

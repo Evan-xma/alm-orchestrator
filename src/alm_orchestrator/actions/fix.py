@@ -75,16 +75,37 @@ class FixAction(BaseAction):
             commit_message = f"{COMMIT_PREFIX_FIX}{summary}\n\nJira: {issue_key}"
             github_client.commit_and_push(work_dir, branch_name, commit_message, issue_key)
 
+            # Compose PR content
+            pr_title = f"{COMMIT_PREFIX_FIX}{summary} [{issue_key}]"
+            pr_body = (
+                f"## Summary\n\n"
+                f"Fixes {issue_key}: {summary}\n\n"
+                f"## Implementation\n\n"
+                f"{result.content}"
+            )
+
+            # Validate PR content before creation
+            pr_validation = self.validate_pr_content(pr_title, pr_body)
+            if not pr_validation.is_valid:
+                logger.warning(
+                    f"PR content blocked for {issue_key}: {pr_validation.failure_reason}"
+                )
+                header = "ACTION FAILED"
+                comment = (
+                    f"{header}\n{'=' * len(header)}\n\n"
+                    "The AI response was blocked by automated security checks. "
+                    "The pull request was not created. "
+                    "Please review the issue manually."
+                )
+                jira_client.add_comment(issue_key, comment)
+                jira_client.remove_label(issue_key, self.label)
+                return f"Fix PR blocked for {issue_key}: {pr_validation.failure_reason}"
+
             # Create PR
             pr = github_client.create_pull_request(
                 branch=branch_name,
-                title=f"{COMMIT_PREFIX_FIX}{summary} [{issue_key}]",
-                body=(
-                    f"## Summary\n\n"
-                    f"Fixes {issue_key}: {summary}\n\n"
-                    f"## Implementation\n\n"
-                    f"{result.content}"
-                )
+                title=pr_title,
+                body=pr_body
             )
 
             # Format response with PR link and cost

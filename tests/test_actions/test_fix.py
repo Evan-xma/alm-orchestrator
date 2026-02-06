@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import MagicMock
 from alm_orchestrator.actions.fix import FixAction
 from alm_orchestrator.claude_executor import ClaudeResult
+from alm_orchestrator.output_validator import ValidationResult
 
 
 class TestFixAction:
@@ -312,3 +313,101 @@ class TestFixAction:
             "No recommendation comment found" in record.message
             for record in caplog.records
         )
+
+    def test_pr_blocked_when_response_contains_secret(self, mocker):
+        """PR is not created when validator detects secrets in PR content."""
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.summary = "Fix the bug"
+        mock_issue.fields.description = "Description here"
+        mock_issue.fields.issuetype.name = "Bug"
+
+        mock_jira = MagicMock()
+        mock_jira.get_investigation_comment.return_value = None
+        mock_jira.get_recommendation_comment.return_value = None
+
+        mock_github = MagicMock()
+        mock_github.clone_repo.return_value = "/tmp/work-dir"
+
+        # Claude returns response containing a secret
+        mock_result = ClaudeResult(
+            content="Fixed the bug. Found AKIAIOSFODNN7EXAMPLE in config.",
+            cost_usd=0.05,
+            duration_ms=5000,
+            session_id="test-session"
+        )
+        mock_claude = MagicMock()
+        mock_claude.execute_with_template.return_value = mock_result
+
+        # Use a validator that actually rejects credentials
+        mock_validator = MagicMock()
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=False, failure_reason="credential_detected"
+        )
+
+        action = FixAction(prompts_dir="/tmp/prompts", validator=mock_validator)
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # PR must NOT be created
+        mock_github.create_pull_request.assert_not_called()
+
+        # Branch should still be pushed
+        mock_github.commit_and_push.assert_called_once()
+
+        # Failure comment posted to Jira
+        mock_jira.add_comment.assert_called_once()
+        comment = mock_jira.add_comment.call_args[0][1]
+        assert "ACTION FAILED" in comment
+        assert "security checks" in comment
+
+        # Label removed
+        mock_jira.remove_label.assert_called_once_with("TEST-123", "ai-fix")
+
+        # Return value indicates blocking
+        assert "blocked" in result.lower()
+
+        # Cleanup still happens
+        mock_github.cleanup.assert_called_once_with("/tmp/work-dir")
+
+    def test_pr_created_when_validation_passes(self, mocker):
+        """PR is created normally when validator approves content."""
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.summary = "Fix the bug"
+        mock_issue.fields.description = "Description here"
+        mock_issue.fields.issuetype.name = "Bug"
+
+        mock_jira = MagicMock()
+        mock_jira.get_investigation_comment.return_value = None
+        mock_jira.get_recommendation_comment.return_value = None
+
+        mock_pr = MagicMock()
+        mock_pr.html_url = "https://github.com/org/repo/pull/42"
+
+        mock_github = MagicMock()
+        mock_github.clone_repo.return_value = "/tmp/work-dir"
+        mock_github.create_pull_request.return_value = mock_pr
+
+        mock_result = ClaudeResult(
+            content="Fixed the null pointer dereference",
+            cost_usd=0.05,
+            duration_ms=5000,
+            session_id="test-session"
+        )
+        mock_claude = MagicMock()
+        mock_claude.execute_with_template.return_value = mock_result
+
+        # Validator approves everything
+        mock_validator = MagicMock()
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=True, failure_reason=""
+        )
+
+        action = FixAction(prompts_dir="/tmp/prompts", validator=mock_validator)
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # PR should be created
+        mock_github.create_pull_request.assert_called_once()
+
+        # Result should indicate success
+        assert "pull/42" in result
