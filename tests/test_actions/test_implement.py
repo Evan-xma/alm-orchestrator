@@ -226,7 +226,7 @@ class TestImplementAction:
         mock_issue = MagicMock()
         mock_issue.key = "TEST-123"
         mock_issue.fields.summary = "Add dashboard"
-        mock_issue.fields.description = "Include token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig in response"
+        mock_issue.fields.description = "Create a dashboard for users"
         mock_issue.fields.issuetype.name = "Story"
 
         mock_jira = MagicMock()
@@ -244,11 +244,15 @@ class TestImplementAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        # Validator rejects (secret in issue description flows into PR body)
+        # Input validation passes, PR content validation fails
         mock_validator = MagicMock()
-        mock_validator.validate.return_value = ValidationResult(
-            is_valid=False, failure_reason="credential_detected"
-        )
+
+        def validate_side_effect(text, action_type):
+            if action_type.startswith("input_"):
+                return ValidationResult(is_valid=True, failure_reason="")
+            return ValidationResult(is_valid=False, failure_reason="credential_detected")
+
+        mock_validator.validate.side_effect = validate_side_effect
 
         action = ImplementAction(prompts_dir="/tmp/prompts", validator=mock_validator)
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)

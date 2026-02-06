@@ -339,11 +339,15 @@ class TestFixAction:
         mock_claude = MagicMock()
         mock_claude.execute_with_template.return_value = mock_result
 
-        # Use a validator that actually rejects credentials
+        # Input validation passes, PR content validation fails
         mock_validator = MagicMock()
-        mock_validator.validate.return_value = ValidationResult(
-            is_valid=False, failure_reason="credential_detected"
-        )
+
+        def validate_side_effect(text, action_type):
+            if action_type.startswith("input_"):
+                return ValidationResult(is_valid=True, failure_reason="")
+            return ValidationResult(is_valid=False, failure_reason="credential_detected")
+
+        mock_validator.validate.side_effect = validate_side_effect
 
         action = FixAction(prompts_dir="/tmp/prompts", validator=mock_validator)
         result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
@@ -411,3 +415,37 @@ class TestFixAction:
 
         # Result should indicate success
         assert "pull/42" in result
+
+    def test_input_validation_blocks_before_claude(self, mocker):
+        """Secret in Jira description blocks execution before Claude runs."""
+        mock_issue = MagicMock()
+        mock_issue.key = "TEST-123"
+        mock_issue.fields.summary = "Fix the bug"
+        mock_issue.fields.description = "Expected: AKIAIOSFODNN7EXAMPLE"
+        mock_issue.fields.issuetype.name = "Bug"
+
+        mock_jira = MagicMock()
+        mock_github = MagicMock()
+        mock_claude = MagicMock()
+
+        # Use real validator so it actually detects the AWS key
+        from alm_orchestrator.output_validator import OutputValidator
+        action = FixAction(prompts_dir="/tmp/prompts", validator=OutputValidator())
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # Claude should NOT be called
+        mock_claude.execute_with_template.assert_not_called()
+
+        # Repo should NOT be cloned
+        mock_github.clone_repo.assert_not_called()
+
+        # Failure comment posted
+        mock_jira.add_comment.assert_called_once()
+        comment = mock_jira.add_comment.call_args[0][1]
+        assert "ACTION FAILED" in comment
+
+        # Label removed
+        mock_jira.remove_label.assert_called_once_with("TEST-123", "ai-fix")
+
+        # Return value indicates blocking
+        assert "blocked" in result.lower() or "secrets" in result.lower()

@@ -45,6 +45,12 @@ class ImplementAction(BaseAction):
         if not self.validate_issue_type(issue, jira_client):
             return f"Rejected {issue_key}: invalid issue type"
 
+        # Validate inputs before invoking Claude
+        if not self.validate_inputs(
+            issue_key, jira_client, summary=summary, description=description
+        ):
+            return f"Input blocked for {issue_key}: secrets detected"
+
         # Check for prior analysis results
         prior_analysis_section = self._build_prior_analysis_section(
             issue_key, jira_client

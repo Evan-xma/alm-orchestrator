@@ -37,6 +37,12 @@ class ImpactAction(BaseAction):
         if not self.validate_issue_type(issue, jira_client):
             return f"Rejected {issue_key}: invalid issue type"
 
+        # Validate inputs before invoking Claude
+        if not self.validate_inputs(
+            issue_key, jira_client, summary=summary, description=description
+        ):
+            return f"Input blocked for {issue_key}: secrets detected"
+
         work_dir = github_client.clone_repo()
 
         try:

@@ -117,6 +117,48 @@ class BaseAction(ABC):
 
         return False
 
+    def validate_inputs(self, issue_key: str, jira_client, **inputs) -> bool:
+        """Check input content for secrets before invoking Claude.
+
+        Validates all provided input strings. If any contain secrets,
+        posts a failure comment and removes the label. Call this before
+        cloning repos or invoking Claude to fail fast.
+
+        Args:
+            issue_key: The Jira issue key.
+            jira_client: JiraClient for posting comments and removing labels.
+            **inputs: Named input strings to validate (e.g., summary=..., description=...).
+
+        Returns:
+            True if all inputs are safe, False if blocked.
+        """
+        if self._validator is None:
+            raise RuntimeError(
+                f"Validator not initialized for {self.__class__.__name__}. "
+                "This is a configuration error."
+            )
+
+        for name, value in inputs.items():
+            if not value:
+                continue
+            result = self._validator.validate(value, f"input_{name}")
+            if not result.is_valid:
+                logger.warning(
+                    f"Secret detected in {name} for {issue_key}: {result.failure_reason}"
+                )
+                header = "ACTION FAILED"
+                comment = (
+                    f"{header}\n{'=' * len(header)}\n\n"
+                    "The issue content was flagged by automated security checks. "
+                    "Please remove any secrets or credentials from the issue "
+                    "and try again."
+                )
+                jira_client.add_comment(issue_key, comment)
+                jira_client.remove_label(issue_key, self.label)
+                return False
+
+        return True
+
     def validate_pr_content(self, title: str, body: str):
         """Validate PR title and body before creation.
 

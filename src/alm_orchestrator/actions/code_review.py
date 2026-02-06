@@ -41,6 +41,12 @@ class CodeReviewAction(BaseAction):
         if not self.validate_issue_type(issue, jira_client):
             return f"Rejected {issue_key}: invalid issue type"
 
+        # Validate inputs before invoking Claude
+        if not self.validate_inputs(
+            issue_key, jira_client, description=description
+        ):
+            return f"Input blocked for {issue_key}: secrets detected"
+
         # Fetch comments (sorted newest-first)
         comments = jira_client.get_comments(issue_key)
         comment_bodies = [c["body"] for c in comments]

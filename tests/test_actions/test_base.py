@@ -199,3 +199,90 @@ class TestValidateAndPost:
             for record in caplog.records
             if record.levelno == logging.WARNING
         )
+
+
+class TestValidateInputs:
+    def test_safe_inputs_return_true(self):
+        """Safe inputs pass validation."""
+        mock_jira = MagicMock()
+        mock_validator = MagicMock()
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=True, failure_reason=""
+        )
+
+        action = ValidatorTestAction(prompts_dir="/tmp/prompts")
+        action._validator = mock_validator
+
+        result = action.validate_inputs(
+            "TEST-123", mock_jira,
+            summary="Fix the login bug",
+            description="Users cannot log in"
+        )
+
+        assert result is True
+        mock_jira.add_comment.assert_not_called()
+        mock_jira.remove_label.assert_not_called()
+
+    def test_secret_in_description_returns_false(self, caplog):
+        """Secret in description blocks and posts failure comment."""
+        import logging
+        caplog.set_level(logging.WARNING)
+
+        mock_jira = MagicMock()
+        mock_validator = MagicMock()
+        # First call (summary) passes, second call (description) fails
+        mock_validator.validate.side_effect = [
+            ValidationResult(is_valid=True, failure_reason=""),
+            ValidationResult(is_valid=False, failure_reason="credential_detected"),
+        ]
+
+        action = ValidatorTestAction(prompts_dir="/tmp/prompts")
+        action._validator = mock_validator
+
+        result = action.validate_inputs(
+            "TEST-123", mock_jira,
+            summary="Fix the bug",
+            description="Use token AKIAIOSFODNN7EXAMPLE"
+        )
+
+        assert result is False
+
+        # Failure comment posted
+        mock_jira.add_comment.assert_called_once()
+        comment = mock_jira.add_comment.call_args[0][1]
+        assert "ACTION FAILED" in comment
+        assert "secrets or credentials" in comment
+
+        # Label removed
+        mock_jira.remove_label.assert_called_once_with(
+            "TEST-123", "ai-validatortest"
+        )
+
+        # Warning logged
+        assert any(
+            "Secret detected" in record.message
+            and "TEST-123" in record.message
+            for record in caplog.records
+        )
+
+    def test_skips_empty_inputs(self):
+        """Empty/None inputs are skipped without validation."""
+        mock_jira = MagicMock()
+        mock_validator = MagicMock()
+        mock_validator.validate.return_value = ValidationResult(
+            is_valid=True, failure_reason=""
+        )
+
+        action = ValidatorTestAction(prompts_dir="/tmp/prompts")
+        action._validator = mock_validator
+
+        result = action.validate_inputs(
+            "TEST-123", mock_jira,
+            summary="Fix bug",
+            description="",
+            prior_analysis=None
+        )
+
+        assert result is True
+        # Only summary should be validated (description and prior_analysis are empty/None)
+        assert mock_validator.validate.call_count == 1

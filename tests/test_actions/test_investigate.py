@@ -137,6 +137,7 @@ class TestInvestigateWithValidator:
         mock_result.cost_usd = 0.05
         mock_executor.execute_with_template.return_value = mock_result
 
+        # All validation passes (input + output)
         mock_validator.validate.return_value = ValidationResult(
             is_valid=True,
             failure_reason=""
@@ -145,14 +146,21 @@ class TestInvestigateWithValidator:
         action = InvestigateAction(prompts_dir="/tmp/prompts", validator=mock_validator)
         result = action.execute(mock_issue, mock_jira, mock_github, mock_executor)
 
-        # Verify validator was used
-        mock_validator.validate.assert_called_once()
+        # Verify validator was used (input validation + output validation)
+        assert mock_validator.validate.call_count >= 1
+
+        # Verify output validation was called with the response
+        output_calls = [
+            c for c in mock_validator.validate.call_args_list
+            if c[0][1] == "investigate"
+        ]
+        assert len(output_calls) == 1
 
         # Verify comment was posted (validation passed)
         assert mock_jira.add_comment.call_count == 1
 
     def test_blocks_response_when_validation_fails(self):
-        """InvestigateAction blocks response when validator rejects it."""
+        """InvestigateAction blocks response when output validator rejects it."""
         mock_jira = MagicMock()
         mock_github = MagicMock()
         mock_executor = MagicMock()
@@ -171,22 +179,51 @@ class TestInvestigateWithValidator:
         mock_result.cost_usd = 0.05
         mock_executor.execute_with_template.return_value = mock_result
 
-        mock_validator.validate.return_value = ValidationResult(
-            is_valid=False,
-            failure_reason="credential_detected"
-        )
+        # Input validation passes, output validation fails
+        def validate_side_effect(text, action_type):
+            if action_type.startswith("input_"):
+                return ValidationResult(is_valid=True, failure_reason="")
+            return ValidationResult(is_valid=False, failure_reason="credential_detected")
+
+        mock_validator.validate.side_effect = validate_side_effect
 
         action = InvestigateAction(prompts_dir="/tmp/prompts", validator=mock_validator)
         result = action.execute(mock_issue, mock_jira, mock_github, mock_executor)
-
-        # Verify validation was attempted
-        mock_validator.validate.assert_called_once_with(
-            ANY,  # The formatted response
-            "investigate"
-        )
 
         # Verify blocked comment was posted (not the actual response)
         assert mock_jira.add_comment.call_count == 1
         call_args = mock_jira.add_comment.call_args[0]
         assert "AI RESPONSE BLOCKED" in call_args[1]
         assert "AKIAIOSFODNN7EXAMPLE" not in call_args[1]
+
+    def test_input_validation_blocks_before_claude(self):
+        """Secret in Jira description blocks execution before Claude runs."""
+        mock_issue = MagicMock()
+        mock_issue.key = "BUG-789"
+        mock_issue.fields.summary = "Auth bug"
+        mock_issue.fields.description = "Expected token: AKIAIOSFODNN7EXAMPLE"
+        mock_issue.fields.issuetype.name = "Bug"
+
+        mock_jira = MagicMock()
+        mock_github = MagicMock()
+        mock_claude = MagicMock()
+
+        action = InvestigateAction(
+            prompts_dir="/tmp/prompts", validator=OutputValidator()
+        )
+        result = action.execute(mock_issue, mock_jira, mock_github, mock_claude)
+
+        # Claude should NOT be called
+        mock_claude.execute_with_template.assert_not_called()
+
+        # Repo should NOT be cloned
+        mock_github.clone_repo.assert_not_called()
+
+        # Failure comment posted
+        mock_jira.add_comment.assert_called_once()
+        comment = mock_jira.add_comment.call_args[0][1]
+        assert "ACTION FAILED" in comment
+        assert "secrets or credentials" in comment
+
+        # Label removed
+        mock_jira.remove_label.assert_called_once_with("BUG-789", "ai-investigate")
