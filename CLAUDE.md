@@ -32,7 +32,8 @@ python main.py
 python main.py --dry-run              # Poll once without processing
 python main.py --poll-interval 10
 python main.py -v                     # Verbose logging
-python main.py                        # Claude inputs/outputs always logged to claude-logs/
+python main.py --env-file custom.env  # Use custom env file (default: .env)
+python main.py --logs-dir custom-logs # Custom logs directory (default: logs)
 ```
 
 No linting or formatting tools are configured (no ruff, black, flake8, mypy, or pre-commit).
@@ -60,7 +61,12 @@ To add a new action:
 2. Define label as a module constant (e.g., `LABEL_MYACTION = "ai-myaction"`)
 3. Return the constant from the `label` property
 4. Override `allowed_issue_types` to restrict which Jira issue types can use this action (e.g., `["Bug"]` or `["Bug", "Story"]`). Empty list means all types allowed.
-5. Implement the `execute()` method
+5. Implement the `execute()` method following the standard pattern:
+   - Call `validate_issue_type()` first
+   - Call `validate_inputs()` to check issue content for secrets
+   - Clone repo, run Claude with `claude_executor.execute_with_template()`
+   - Call `_validate_and_post()` to validate and post results
+   - Always cleanup in `finally` block via `github_client.cleanup(work_dir)`
 6. Create `prompts/{name}.md` template with your prompt
 7. Create `prompts/{name}.json` with sandbox settings
 8. Restart daemon — auto-discovered
@@ -94,8 +100,15 @@ Some actions automatically include context from prior actions on the same issue:
 
 Context is fetched via `JiraClient.get_investigation_comment()` and `get_recommendation_comment()`, which match by comment header (`"INVESTIGATION RESULTS"`, `"RECOMMENDATIONS"`) and service account ID.
 
-### Output Validation
+### Input & Output Validation
 
+**Input Validation:**
+All actions validate issue content (summary, description) before cloning repos or invoking Claude via `validate_inputs()`. This prevents prompt injection and catches secrets in user-provided content. If validation fails:
+- A generic "ACTION FAILED" comment is posted to Jira
+- The label is removed
+- No repo cloning or Claude invocation occurs (fail fast)
+
+**Output Validation:**
 All action responses pass through `OutputValidator` (in `output_validator.py`) before being posted to Jira. The base action method `_validate_and_post()` handles this. The validator checks for:
 
 - **Credential patterns:** AWS keys, private key headers, JWTs, API key assignments, env vars with secrets
@@ -109,7 +122,11 @@ Each action has a sandbox settings file: `prompts/{action}.json`. Read-only acti
 
 ### Configuration
 
-Environment variables loaded from `.env` and validated in `config.py`. See `.env.example` for all variables. Key required vars: `JIRA_URL`, `JIRA_PROJECT_KEY`, `JIRA_CLIENT_ID`, `JIRA_CLIENT_SECRET`, `GITHUB_TOKEN`, `GITHUB_REPO`.
+**Environment Variables:**
+Loaded from `.env` and validated in `config.py`. See `.env.example` for all variables. Key required vars: `JIRA_URL`, `JIRA_PROJECT_KEY`, `JIRA_CLIENT_ID`, `JIRA_CLIENT_SECRET`, `GITHUB_TOKEN`, `GITHUB_REPO`.
+
+**Claude Code Settings:**
+The `.claude/settings.json` file configures the status line for this repository. Action-specific sandbox settings in `prompts/*.json` are installed to `.claude/settings.local.json` at runtime (higher precedence than `settings.json`).
 
 ### Key Implementation Details
 
@@ -142,8 +159,8 @@ Environment variables loaded from `.env` and validated in `config.py`. See `.env
 **Logging:**
 - CSV format: `asctime,levelname,name,message`
 - Console + file logging (file at DEBUG, console configurable)
-- File logs: `logs/run-{YYYYMMDD-HHMMSS}.log`
-- Claude execution logs: `claude-logs/{IssueKey}-{action}-{timestamp}.txt` (always-on, captures prompts + responses)
+- File logs: `logs/run-{YYYYMMDD-HHMMSS}.log` (can be customized via `--logs-dir`)
+- Claude execution logs: Captured in dedicated directory with full prompts + responses for audit/debugging
 
 ### Testing Patterns
 
